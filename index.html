@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>五子棋游戏</title>
+  <title>五子棋 & 学生版真心话大冒险</title>
   <style>
     body { 
       font-family: 'Segoe UI', Arial, sans-serif; 
@@ -50,13 +50,18 @@
       font-weight: bold;
       color: #2c3e50;
     }
-    #trContent {
-      font-size: 18px;
-      padding: 20px;
-      background: #fff8e1;
-      border-radius: 8px;
-      min-height: 100px;
-      border: 2px dashed #ff9800;
+    .punishment-dialog {
+      position: fixed; 
+      top: 50%; 
+      left: 50%; 
+      transform: translate(-50%, -50%);
+      background: white; 
+      padding: 30px; 
+      border-radius: 15px; 
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+      z-index: 1000; 
+      text-align: center; 
+      max-width: 500px;
     }
   </style>
 </head>
@@ -64,32 +69,26 @@
   <h1 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">五子棋游戏</h1>
   
   <div class="game-container">
-    <div class="nav">
-      <button id="btnGomoku">五子棋</button>
-    </div>
-
-    <div id="sectionGomoku" class="active">
-      <div class="control-panel">
-        <div class="control-group">
-          <label>游戏模式：</label>
-          <select id="gameMode">
-            <option value="human">双人对战</option>
-            <option value="ai">对战AI</option>
-          </select>
-        </div>
-        <div class="control-group">
-          <label>AI难度：</label>
-          <input type="range" id="aiDifficulty" min="1" max="10" value="5">
-          <span id="difficultyValue">5</span>
-        </div>
-        <div class="control-group">
-          <button id="undoBtn">悔棋 (Ctrl+Z)</button>
-          <button id="resetButton">新游戏</button>
-        </div>
+    <div class="control-panel">
+      <div class="control-group">
+        <label>游戏模式：</label>
+        <select id="gameMode">
+          <option value="human">双人对战</option>
+          <option value="ai">对战AI</option>
+        </select>
       </div>
-      <canvas id="board" width="600" height="600"></canvas>
-      <div id="message">黑棋先手</div>
+      <div class="control-group">
+        <label>AI难度：</label>
+        <input type="range" id="aiDifficulty" min="1" max="10" value="5">
+        <span id="difficultyValue">5</span>
+      </div>
+      <div class="control-group">
+        <button id="undoBtn">悔棋 (Ctrl+Z)</button>
+        <button id="resetButton">新游戏</button>
+      </div>
     </div>
+    <canvas id="board" width="600" height="600"></canvas>
+    <div id="message">黑棋先手</div>
   </div>
 
   <script>
@@ -98,6 +97,23 @@
     const BOARD_SIZE = 15;
     const CELL_SIZE = 40;
     const OFFSET = 20;
+
+    // 学生版真心话大冒险内容
+    const studentTruths = [
+      "你最喜欢的学科是什么？为什么？",
+      "描述一次你帮助同学的经历",
+      "如果你有一天可以做校长，你会做什么改变？",
+      "你最近读过的一本好书是什么？",
+      "你觉得自己最大的优点是什么？"
+    ];
+
+    const studentDares = [
+      "表演一段你最喜欢的课间操",
+      "用三种不同的语气说同一句话",
+      "模仿一位老师的经典动作或口头禅",
+      "用肢体动作表演一个成语让大家猜",
+      "对着窗户大声说'今天又是充满希望的一天！'"
+    ];
 
     let gameState = {
       board: Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0)),
@@ -161,10 +177,6 @@
       ctx.stroke();
     }
 
-    function updateMessage(msg) {
-      document.getElementById("message").innerText = msg;
-    }
-
     function getBoardPosition(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
       const rawX = clientX - rect.left - OFFSET;
@@ -201,17 +213,9 @@
     class AI {
       constructor(difficulty) {
         this.difficulty = Math.min(10, Math.max(1, difficulty));
-        this.depthMap = [0,1,2,3,4,5,6,7,8,9,10];
       }
 
       getMove() {
-        const depth = this.depthMap[Math.min(this.difficulty, 10)];
-        if (this.difficulty < 3) return this.randomMove();
-        if (this.difficulty < 7) return this.patternMove();
-        return this.minimaxMove(depth);
-      }
-
-      randomMove() {
         const moves = [];
         for (let y = 0; y < BOARD_SIZE; y++) {
           for (let x = 0; x < BOARD_SIZE; x++) {
@@ -220,191 +224,67 @@
         }
         return moves[Math.floor(Math.random() * moves.length)];
       }
-
-      patternMove() {
-        // 优化后的模式识别算法
-        let bestScore = -Infinity;
-        let bestMoves = [];
-        for (let y = 0; y < BOARD_SIZE; y++) {
-          for (let x = 0; x < BOARD_SIZE; x++) {
-            if (gameState.board[y][x] !== 0) continue;
-            let score = this.evaluatePosition(x, y);
-            if (score > bestScore) {
-              bestScore = score;
-              bestMoves = [[x, y]];
-            } else if (score === bestScore) {
-              bestMoves.push([x, y]);
-            }
-          }
-        }
-        return bestMoves[Math.floor(Math.random() * bestMoves.length)];
-      }
-
-      evaluatePosition(x, y) {
-        let score = 0;
-        const directions = [[1,0], [0,1], [1,1], [1,-1]];
-        directions.forEach(([dx, dy]) => {
-          let playerCount = 0, emptyEnds = 0;
-          let i = 1;
-          while (x + dx * i < BOARD_SIZE && y + dy * i < BOARD_SIZE) {
-            const cell = gameState.board[y + dy * i][x + dx * i];
-            if (cell === 2) playerCount++;
-            else if (cell === 0) { emptyEnds++; break; }
-            else break;
-            i++;
-          }
-          i = 1;
-          while (x - dx * i >= 0 && y - dy * i >= 0) {
-            const cell = gameState.board[y - dy * i][x - dx * i];
-            if (cell === 2) playerCount++;
-            else if (cell === 0) { emptyEnds++; break; }
-            else break;
-            i++;
-          }
-          if (playerCount >= 4) score += 100000;
-          else if (playerCount === 3) score += emptyEnds * 2000;
-          else if (playerCount === 2) score += emptyEnds * 500;
-        });
-        return score;
-      }
-
-      minimaxMove(maxDepth) {
-        let bestScore = -Infinity;
-        let bestMove = null;
-        const moves = this.getCandidateMoves();
-        for (const [x, y] of moves) {
-          gameState.board[y][x] = 2;
-          const score = this.minimax(maxDepth - 1, -Infinity, Infinity, false);
-          gameState.board[y][x] = 0;
-          if (score > bestScore) {
-            bestScore = score;
-            bestMove = [x, y];
-          }
-          if (score === Infinity) break;
-        }
-        return bestMove || this.patternMove();
-      }
-
-      minimax(depth, alpha, beta, isMax) {
-        if (depth === 0) return this.evaluateBoard();
-        const moves = this.getCandidateMoves();
-        if (isMax) {
-          let maxEval = -Infinity;
-          for (const [x, y] of moves) {
-            gameState.board[y][x] = 2;
-            const evalScore = this.minimax(depth - 1, alpha, beta, false);
-            gameState.board[y][x] = 0;
-            maxEval = Math.max(maxEval, evalScore);
-            alpha = Math.max(alpha, evalScore);
-            if (beta <= alpha) break;
-          }
-          return maxEval;
-        } else {
-          let minEval = Infinity;
-          for (const [x, y] of moves) {
-            gameState.board[y][x] = 1;
-            const evalScore = this.minimax(depth - 1, alpha, beta, true);
-            gameState.board[y][x] = 0;
-            minEval = Math.min(minEval, evalScore);
-            beta = Math.min(beta, evalScore);
-            if (beta <= alpha) break;
-          }
-          return minEval;
-        }
-      }
-
-      evaluateBoard() {
-        let score = 0;
-        const patterns = {'五连':10000, '活四':5000, '冲四':2000, '活三':1000};
-        for (let y = 0; y < BOARD_SIZE; y++) {
-          for (let x = 0; x < BOARD_SIZE; x++) {
-            if (gameState.board[y][x] !== 2) continue;
-            const directions = [[1,0], [0,1], [1,1], [1,-1]];
-            directions.forEach(([dx, dy]) => {
-              let consecutive = 1;
-              let openEnds = 0;
-              let i = 1;
-              while (x + dx * i < BOARD_SIZE && y + dy * i < BOARD_SIZE) {
-                if (gameState.board[y + dy * i][x + dx * i] === 2) consecutive++;
-                else {
-                  if (gameState.board[y + dy * i][x + dx * i] === 0) openEnds++;
-                  break;
-                }
-                i++;
-              }
-              i = 1;
-              while (x - dx * i >= 0 && y - dy * i >= 0) {
-                if (gameState.board[y - dy * i][x - dx * i] === 2) consecutive++;
-                else {
-                  if (gameState.board[y - dy * i][x - dx * i] === 0) openEnds++;
-                  break;
-                }
-                i++;
-              }
-              if (consecutive >= 5) score += patterns['五连'];
-              else if (consecutive === 4) score += openEnds ? patterns['活四'] : patterns['冲四'];
-              else if (consecutive === 3 && openEnds >= 2) score += patterns['活三'];
-            });
-          }
-        }
-        return score;
-      }
-
-      getCandidateMoves() {
-        const moves = new Set();
-        for (let y = 0; y < BOARD_SIZE; y++) {
-          for (let x = 0; x < BOARD_SIZE; x++) {
-            if (gameState.board[y][x] !== 0) {
-              for (let dy = -2; dy <= 2; dy++) {
-                for (let dx = -2; dx <= 2; dx++) {
-                  const nx = x + dx, ny = y + dy;
-                  if (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE && gameState.board[ny][nx] === 0) {
-                    moves.add(`${nx},${ny}`);
-                  }
-                }
-              }
-            }
-          }
-        }
-        return moves.size > 0 ? Array.from(moves).map(i => i.split(',').map(Number)) : this.randomMove();
-      }
     }
 
     canvas.addEventListener("click", (e) => {
       if (gameState.gameOver || (gameState.aiEnabled && gameState.currentPlayer !== 1)) return;
+      
       const {x, y} = getBoardPosition(e.clientX, e.clientY);
       if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && gameState.board[y][x] === 0) {
-        gameState.board[y][x] = gameState.currentPlayer;
-        gameState.history.push({x, y, player: gameState.currentPlayer});
-        drawStone(x, y, gameState.currentPlayer);
+        // 玩家落子
+        gameState.board[y][x] = 1;
+        gameState.history.push({x, y, player: 1});
+        drawStone(x, y, 1);
         
         if (checkWin(x, y)) {
           gameState.gameOver = true;
-          updateMessage(`玩家${gameState.currentPlayer}获胜！`);
-        } else {
-          gameState.currentPlayer = gameState.aiEnabled ? 2 : 3 - gameState.currentPlayer;
-          updateMessage(`${gameState.currentPlayer === 1 ? '黑棋' : '白棋'}回合`);
+          showPunishment(2);
+          updateMessage("玩家获胜！");
+        } else if (gameState.aiEnabled) {
+          gameState.currentPlayer = 2;
+          updateMessage("AI思考中...");
           
-          if (gameState.aiEnabled) {
-            setTimeout(() => {
-              const ai = new AI(gameState.aiDifficulty);
-              const [aiX, aiY] = ai.getMove();
-              gameState.board[aiY][aiX] = 2;
-              gameState.history.push({x: aiX, y: aiY, player: 2});
-              drawStone(aiX, aiY, 2);
-              
-              if (checkWin(aiX, aiY)) {
-                gameState.gameOver = true;
-                updateMessage("AI获胜！");
-              } else {
-                gameState.currentPlayer = 1;
-                updateMessage("黑棋回合");
-              }
-            }, Math.max(1000 - gameState.aiDifficulty * 100, 200));
-          }
+          // AI落子
+          setTimeout(() => {
+            const ai = new AI(gameState.aiDifficulty);
+            const [aiX, aiY] = ai.getMove();
+            gameState.board[aiY][aiX] = 2;
+            gameState.history.push({x: aiX, y: aiY, player: 2});
+            drawStone(aiX, aiY, 2);
+            
+            if (checkWin(aiX, aiY)) {
+              gameState.gameOver = true;
+              showPunishment(1);
+              updateMessage("AI获胜！");
+            } else {
+              gameState.currentPlayer = 1;
+              updateMessage("黑棋回合");
+            }
+          }, 500);
         }
       }
     });
+
+    function showPunishment(loser) {
+      const dialog = document.createElement('div');
+      dialog.className = 'punishment-dialog';
+      const isTruth = Math.random() > 0.5;
+      const content = isTruth ? 
+        studentTruths[Math.floor(Math.random() * studentTruths.length)] :
+        studentDares[Math.floor(Math.random() * studentDares.length)];
+
+      dialog.innerHTML = `
+        <h3 style="color: ${isTruth ? '#27ae60' : '#2980b9'}">
+          ${loser === 1 ? '玩家' : 'AI'}需要完成：
+        </h3>
+        <p style="font-size: 18px; margin: 20px 0;">${content}</p>
+        <button onclick="this.parentElement.remove()" 
+                style="padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 5px;">
+          确定
+        </button>
+      `;
+      document.body.appendChild(dialog);
+    }
 
     document.getElementById("gameMode").addEventListener("change", (e) => {
       gameState.aiEnabled = e.target.value === 'ai';
