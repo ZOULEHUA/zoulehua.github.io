@@ -263,7 +263,6 @@
             if(gameMode === "pvp") {
                 document.getElementById("message").innerText = (currentPlayer === 1 ? "黑棋" : "白棋") + " 先手";
             } else {
-                // 在 PvAI 模式下，玩家始终是黑棋（1），AI 是白棋（2）
                 document.getElementById("message").innerText = "玩家先手";
             }
             return true;
@@ -285,7 +284,7 @@
             }
         });
 
-        // AI 随机下棋（简单难度）
+        // AI 简单走法（随机走棋）
         function randomMove() {
             let emptyCells = [];
             for (let i = 0; i < boardSize; i++) {
@@ -316,32 +315,179 @@
             return null;
         }
 
-        // AI 走棋函数，根据难度选择策略
+        /* ============== 新增：基于 Minimax 的 AI ============== */
+        // 获取候选走法（仅考虑邻近已有棋子的空位）
+        function getCandidateMoves() {
+            let moves = [];
+            for (let i = 0; i < boardSize; i++) {
+                for (let j = 0; j < boardSize; j++) {
+                    if (board[i][j] === 0) {
+                        let found = false;
+                        for (let di = -1; di <= 1; di++) {
+                            for (let dj = -1; dj <= 1; dj++) {
+                                let ni = i + di, nj = j + dj;
+                                if (ni >= 0 && ni < boardSize && nj >= 0 && nj < boardSize) {
+                                    if (board[ni][nj] !== 0) {
+                                        moves.push({row: i, col: j});
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (found) break;
+                        }
+                    }
+                }
+            }
+            // 如果没有找到，则返回所有空位
+            if (moves.length === 0) {
+                for (let i = 0; i < boardSize; i++) {
+                    for (let j = 0; j < boardSize; j++) {
+                        if (board[i][j] === 0) moves.push({row: i, col: j});
+                    }
+                }
+            }
+            return moves;
+        }
+
+        // 评价局面：对每个棋子根据连续棋子数给予评分
+        function evaluatePositionMinimax(x, y, player) {
+            let total = 0;
+            const directions = [
+                {dx: 1, dy: 0},
+                {dx: 0, dy: 1},
+                {dx: 1, dy: 1},
+                {dx: 1, dy: -1}
+            ];
+            for (let d = 0; d < directions.length; d++) {
+                let count = 1;
+                let block = 0;
+                let {dx, dy} = directions[d];
+                let i = 1;
+                while (true) {
+                    let nx = x + dx * i, ny = y + dy * i;
+                    if (nx < 0 || nx >= boardSize || ny < 0 || ny >= boardSize) { block++; break; }
+                    if (board[ny][nx] === player) {
+                        count++;
+                    } else if (board[ny][nx] !== 0) {
+                        block++;
+                        break;
+                    } else {
+                        break;
+                    }
+                    i++;
+                }
+                i = 1;
+                while (true) {
+                    let nx = x - dx * i, ny = y - dy * i;
+                    if (nx < 0 || nx >= boardSize || ny < 0 || ny >= boardSize) { block++; break; }
+                    if (board[ny][nx] === player) {
+                        count++;
+                    } else if (board[ny][nx] !== 0) {
+                        block++;
+                        break;
+                    } else {
+                        break;
+                    }
+                    i++;
+                }
+                if (count >= 5) return 100000;
+                if (count === 4) {
+                    total += (block === 0 ? 10000 : 1000);
+                } else if (count === 3) {
+                    total += (block === 0 ? 1000 : 100);
+                } else if (count === 2) {
+                    total += (block === 0 ? 100 : 10);
+                } else {
+                    total += 1;
+                }
+            }
+            return total;
+        }
+
+        // 评价整个棋盘局面，从 AI 视角（玩家2）出发
+        function evaluateBoard() {
+            let score = 0;
+            for (let i = 0; i < boardSize; i++) {
+                for (let j = 0; j < boardSize; j++) {
+                    if (board[i][j] === 2) {
+                        score += evaluatePositionMinimax(j, i, 2);
+                    } else if (board[i][j] === 1) {
+                        score -= evaluatePositionMinimax(j, i, 1);
+                    }
+                }
+            }
+            return score;
+        }
+
+        // Minimax 算法（深度搜索，带 α-β 剪枝）
+        function minimax(depth, alpha, beta, maximizingPlayer) {
+            if (depth === 0 || gameOver) {
+                return evaluateBoard();
+            }
+            let candidates = getCandidateMoves();
+            if (maximizingPlayer) {
+                let maxEval = -Infinity;
+                for (let move of candidates) {
+                    board[move.row][move.col] = 2;
+                    let eval = minimax(depth - 1, alpha, beta, false);
+                    board[move.row][move.col] = 0;
+                    maxEval = Math.max(maxEval, eval);
+                    alpha = Math.max(alpha, eval);
+                    if (beta <= alpha) break;
+                }
+                return maxEval;
+            } else {
+                let minEval = Infinity;
+                for (let move of candidates) {
+                    board[move.row][move.col] = 1;
+                    let eval = minimax(depth - 1, alpha, beta, true);
+                    board[move.row][move.col] = 0;
+                    minEval = Math.min(minEval, eval);
+                    beta = Math.min(beta, eval);
+                    if (beta <= alpha) break;
+                }
+                return minEval;
+            }
+        }
+
+        // 在 hard 模式下，使用 Minimax 搜索选出最佳走法
+        function bestMinimaxMove() {
+            let bestScore = -Infinity;
+            let bestMove = null;
+            let candidates = getCandidateMoves();
+            for (let move of candidates) {
+                board[move.row][move.col] = 2;
+                let score = minimax(2, -Infinity, Infinity, false);  // 这里搜索深度设为 2，可调整
+                board[move.row][move.col] = 0;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = move;
+                }
+            }
+            return bestMove;
+        }
+        /* ============== AI 走棋函数 ============== */
         function aiMove() {
             if (gameOver) return;
-            // AI 代表白棋（2）
             let move = null;
             if (aiDifficulty === "easy") {
                 move = randomMove();
             } else if (aiDifficulty === "medium") {
-                // 先尝试必胜走法
                 move = findWinningMove(2);
                 if (!move) {
-                    // 再尝试阻止对方必胜（对手是1）
                     move = findWinningMove(1);
                 }
                 if (!move) {
                     move = randomMove();
                 }
             } else if (aiDifficulty === "hard") {
-                // 更高级：先必胜，再阻止，再随机
                 move = findWinningMove(2);
                 if (!move) {
                     move = findWinningMove(1);
                 }
                 if (!move) {
-                    // 在 hard 模式下，可以遍历所有空位，选择一个“评分”最高的位置
-                    move = bestScoredMove();
+                    move = bestMinimaxMove();
                     if (!move) move = randomMove();
                 }
             }
@@ -359,60 +505,7 @@
             }
         }
 
-        // 简单评分函数，用于 Hard 难度下选择最佳走法
-        function bestScoredMove() {
-            let bestScore = -Infinity;
-            let bestMove = null;
-            for (let i = 0; i < boardSize; i++) {
-                for (let j = 0; j < boardSize; j++) {
-                    if (board[i][j] === 0) {
-                        // 评分规则：简单计算该位置放置后连成的子数
-                        board[i][j] = 2;
-                        let score = evaluatePosition(j, i, 2);
-                        board[i][j] = 0;
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestMove = {row: i, col: j};
-                        }
-                    }
-                }
-            }
-            return bestMove;
-        }
-
-        // 简单评分函数：统计四个方向的连续棋子数
-        function evaluatePosition(x, y, player) {
-            let total = 0;
-            const directions = [
-                {dx: 1, dy: 0},
-                {dx: 0, dy: 1},
-                {dx: 1, dy: 1},
-                {dx: 1, dy: -1}
-            ];
-            directions.forEach(dir => {
-                let count = 0;
-                let i = 1;
-                while (true) {
-                    const newX = x + dir.dx * i;
-                    const newY = y + dir.dy * i;
-                    if (newX < 0 || newX >= boardSize || newY < 0 || newY >= boardSize || board[newY][newX] !== player) break;
-                    count++;
-                    i++;
-                }
-                i = 1;
-                while (true) {
-                    const newX = x - dir.dx * i;
-                    const newY = y - dir.dy * i;
-                    if (newX < 0 || newX >= boardSize || newY < 0 || newY >= boardSize || board[newY][newX] !== player) break;
-                    count++;
-                    i++;
-                }
-                total += count;
-            });
-            return total;
-        }
-
-        // 悔棋功能：PvP 悔一步，PvAI 悔两步（玩家与 AI 各撤一步）
+        // 悔棋功能：PvP 悔一步，PvAI 悔玩家和 AI 的最后一步
         document.getElementById("undoButton").addEventListener("click", function() {
             if (movesHistory.length === 0 || gameOver) return;
             if (gameMode === "pvp") {
@@ -420,7 +513,6 @@
                 board[lastMove.row][lastMove.col] = 0;
                 currentPlayer = lastMove.player;
             } else if (gameMode === "pvai") {
-                // 撤销玩家和 AI 的最后一步
                 if (movesHistory.length >= 2) {
                     let moveAI = movesHistory.pop();
                     board[moveAI.row][moveAI.col] = 0;
@@ -428,7 +520,6 @@
                     board[movePlayer.row][movePlayer.col] = 0;
                     currentPlayer = 1;
                 } else {
-                    // 如果不足两步，则只撤销一步
                     let lastMove = movesHistory.pop();
                     board[lastMove.row][lastMove.col] = 0;
                     currentPlayer = 1;
@@ -459,7 +550,7 @@
             "大声唱一段流行歌曲。",
             "跳一段你最尴尬的舞蹈。"
         ];
-        // 成人版内容（示例，请根据需要调整）
+        // 成人版内容（示例，可根据需要调整）
         const truthsAdult = [
             "你最后一次喝醉是什么时候？",
             "说说你做过的最疯狂的一件事。",
