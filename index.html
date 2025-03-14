@@ -1,166 +1,252 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>智能五子棋-豪华版</title>
+    <title>五子棋 & 真心话大冒险</title>
     <style>
         body {
-            background: #f0f0f0;
-            font-family: '微软雅黑', Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
+            font-family: Arial, sans-serif;
+            text-align: center;
         }
-
-        .control-panel {
-            background: white;
-            padding: 15px 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            display: flex;
-            gap: 25px;
-            flex-wrap: wrap;
+        /* 导航按钮 */
+        .nav {
+            margin-top: 20px;
         }
-
-        .control-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        button {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        button:hover {
-            background: #45a049;
-        }
-
-        #scoreLabel {
+        .nav button {
+            margin: 5px;
+            padding: 10px 20px;
             font-size: 16px;
-            font-weight: bold;
-            color: #333;
-            padding: 6px 12px;
-            background: #f8f8f8;
-            border-radius: 4px;
         }
-
-        #board {
-            background: #FFF8DC;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        /* 各功能区 */
+        .section {
+            display: none;
         }
-
-        input[type="range"] {
-            width: 120px;
+        .active {
+            display: block;
         }
-
-        select {
-            padding: 4px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
+        /* 五子棋相关样式 */
+        canvas {
+            background-color: #F0D9B5;
+            border: 2px solid #333;
+            margin-top: 20px;
+        }
+        #message {
+            margin-top: 10px;
+            font-size: 20px;
+        }
+        #resetButton {
+            margin-top: 10px;
+            font-size: 16px;
+            padding: 5px 10px;
+        }
+        /* 真心话大冒险相关样式 */
+        #tdButtons button {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        #trContent {
+            margin-top: 20px;
+            font-size: 18px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+            min-height: 50px;
         }
     </style>
 </head>
 <body>
-    <div class="control-panel">
-        <div class="control-group">
-            <button id="modeBtn">切换AI模式</button>
-        </div>
-        <div class="control-group">
-            <label>AI难度:</label>
-            <input type="range" id="difficulty" min="1" max="10" value="5">
-        </div>
-        <div class="control-group">
-            <select id="ruleSelect">
-                <option>三局两胜</option>
-                <option>五局三胜</option>
-                <option>十局六胜</option>
-            </select>
-        </div>
-        <div class="control-group">
-            <span id="scoreLabel">分数 | 玩家1: 0  玩家2: 0</span>
-        </div>
-        <div class="control-group">
-            <button id="startBtn">新游戏</button>
-            <button id="undoBtn">悔棋</button>
-        </div>
+    <h1>五子棋 & 真心话大冒险</h1>
+    <!-- 导航切换 -->
+    <div class="nav">
+        <button id="btnGomoku">五子棋</button>
+        <button id="btnTruthDare">真心话大冒险</button>
     </div>
-    <canvas id="board"></canvas>
 
-<script>
-// 以下为原Python代码逻辑的JavaScript转换实现
-const CELL_SIZE = 30;
-const BOARD_SIZE = 19;
-let game = {
-    // ...保持原有变量结构...
-    punishmentQuestions: [
-        "你与多少人发生过性关系？",
-        "描述你最尴尬的性经历？",
-        "你有没有出轨过？",
-        // ...其他问题保持原样...
-    ],
-    punishmentTasks: [
-        "给前任打电话说'我想念你的身体'",
-        "在公共场所舔地板",
-        "给赢家发送下体照片",
-        // ...其他任务保持原样...
-    ]
-};
+    <!-- 五子棋区 -->
+    <div id="sectionGomoku" class="section active">
+        <canvas id="board" width="600" height="600"></canvas>
+        <div id="message">黑棋先手</div>
+        <button id="resetButton">重置游戏</button>
+    </div>
 
-// Canvas初始化
-const canvas = document.getElementById('board');
-const ctx = canvas.getContext('2d');
-canvas.width = BOARD_SIZE * CELL_SIZE;
-canvas.height = BOARD_SIZE * CELL_SIZE;
+    <!-- 真心话大冒险区 -->
+    <div id="sectionTruthDare" class="section">
+        <div id="tdButtons">
+            <button id="btnTruth">真心话</button>
+            <button id="btnDare">大冒险</button>
+        </div>
+        <div id="trContent">点击上方按钮获取内容</div>
+    </div>
 
-// 绘制棋盘（保持原有星位等逻辑）
-function drawBoard() {
-    // ...原样转换Tkinter的draw_board逻辑...
-}
+    <script>
+        /* 导航切换代码 */
+        document.getElementById("btnGomoku").addEventListener("click", function(){
+            document.getElementById("sectionGomoku").classList.add("active");
+            document.getElementById("sectionTruthDare").classList.remove("active");
+        });
+        document.getElementById("btnTruthDare").addEventListener("click", function(){
+            document.getElementById("sectionGomoku").classList.remove("active");
+            document.getElementById("sectionTruthDare").classList.add("active");
+        });
 
-// 游戏核心逻辑（完全保留原有逻辑结构）
-function checkWin(x, y) {
-    // ...原样转换check_win逻辑...
-}
+        /* ----------------- 五子棋部分 ----------------- */
+        const canvas = document.getElementById("board");
+        const ctx = canvas.getContext("2d");
+        const boardSize = 15;  // 棋盘为 15x15
+        const cellSize = 40;   // 每格 40 像素
+        const offset = 20;     // 边缘间距
 
-function showPunishment(loser) {
-    // 实现弹窗逻辑
-    const isTruth = confirm(`玩家${loser}请选择：\n确定 - 真心话\n取消 - 大冒险`);
-    const content = isTruth ? 
-        game.punishmentQuestions[Math.floor(Math.random()*game.punishmentQuestions.length)] :
-        game.punishmentTasks[Math.floor(Math.random()*game.punishmentTasks.length)];
-    
-    const dialog = document.createElement('div');
-    // ...实现美观的弹窗样式...
-    alert(content); // 暂时使用alert
-}
+        let board = [];        // 二维数组：0空，1黑，2白
+        let currentPlayer = 1; // 1: 黑棋先手，2: 白棋
+        let gameOver = false;
 
-// 事件绑定
-canvas.addEventListener('click', handleClick);
-document.getElementById('startBtn').addEventListener('click', startNewGame);
-// ...其他事件绑定...
+        // 初始化棋盘数据
+        function initBoard() {
+            board = [];
+            for (let i = 0; i < boardSize; i++) {
+                let row = [];
+                for (let j = 0; j < boardSize; j++) {
+                    row.push(0);
+                }
+                board.push(row);
+            }
+            currentPlayer = 1;
+            gameOver = false;
+            document.getElementById("message").innerText = "黑棋先手";
+        }
 
-// 初始化游戏
-drawBoard();
-initGame();
+        // 绘制棋盘与棋子
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // 绘制背景
+            ctx.fillStyle = "#F0D9B5";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // 绘制网格
+            ctx.strokeStyle = "#333";
+            for (let i = 0; i < boardSize; i++) {
+                ctx.beginPath();
+                ctx.moveTo(offset, offset + i * cellSize);
+                ctx.lineTo(offset + (boardSize - 1) * cellSize, offset + i * cellSize);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(offset + i * cellSize, offset);
+                ctx.lineTo(offset + i * cellSize, offset + (boardSize - 1) * cellSize);
+                ctx.stroke();
+            }
+            // 绘制已有棋子
+            for (let i = 0; i < boardSize; i++) {
+                for (let j = 0; j < boardSize; j++) {
+                    if (board[i][j] !== 0) {
+                        drawStone(j, i, board[i][j]);
+                    }
+                }
+            }
+        }
 
-// 保留所有原有方法（AI逻辑、悔棋、积分计算等）
-function aiMove() {
-    // ...完全保留原有AI决策逻辑...
-}
+        // 绘制棋子
+        function drawStone(x, y, player) {
+            const centerX = offset + x * cellSize;
+            const centerY = offset + y * cellSize;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, cellSize/2 - 2, 0, 2*Math.PI);
+            ctx.fillStyle = (player === 1) ? "black" : "white";
+            ctx.fill();
+            ctx.strokeStyle = "black";
+            ctx.stroke();
+        }
 
-// ...200+行原有逻辑的JavaScript转换...
-</script>
+        // 检查胜利条件（横、竖、两对角线连续五子）
+        function checkWin(x, y) {
+            const player = board[y][x];
+            if (player === 0) return false;
+            const directions = [
+                {dx: 1, dy: 0},
+                {dx: 0, dy: 1},
+                {dx: 1, dy: 1},
+                {dx: 1, dy: -1}
+            ];
+            for (let d = 0; d < directions.length; d++) {
+                let count = 1;
+                const {dx, dy} = directions[d];
+                let i = 1;
+                while (true) {
+                    const newX = x + dx * i;
+                    const newY = y + dy * i;
+                    if (newX < 0 || newX >= boardSize || newY < 0 || newY >= boardSize || board[newY][newX] !== player) break;
+                    count++;
+                    i++;
+                }
+                i = 1;
+                while (true) {
+                    const newX = x - dx * i;
+                    const newY = y - dy * i;
+                    if (newX < 0 || newX >= boardSize || newY < 0 || newY >= boardSize || board[newY][newX] !== player) break;
+                    count++;
+                    i++;
+                }
+                if (count >= 5) return true;
+            }
+            return false;
+        }
+
+        // 处理棋盘点击事件
+        canvas.addEventListener("click", function(e) {
+            if (gameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            const col = Math.round((clickX - offset) / cellSize);
+            const row = Math.round((clickY - offset) / cellSize);
+            if (col < 0 || col >= boardSize || row < 0 || row >= boardSize) return;
+            if (board[row][col] !== 0) return;
+            board[row][col] = currentPlayer;
+            drawBoard();
+            if (checkWin(col, row)) {
+                document.getElementById("message").innerText = (currentPlayer === 1 ? "黑棋" : "白棋") + " 赢了！";
+                gameOver = true;
+                return;
+            }
+            currentPlayer = (currentPlayer === 1 ? 2 : 1);
+            document.getElementById("message").innerText = (currentPlayer === 1 ? "黑棋" : "白棋") + " 先手";
+        });
+
+        document.getElementById("resetButton").addEventListener("click", function() {
+            initBoard();
+            drawBoard();
+        });
+
+        initBoard();
+        drawBoard();
+
+        /* ----------------- 真心话大冒险部分 ----------------- */
+        // 以下数组内容为示例，请将其替换为你原来代码中的真心话和大冒险内容
+        const truths = [
+            "你最害怕什么？",
+            "说出你曾经做过最尴尬的一件事。",
+            "你有没有暗恋过别人？是谁？"
+        ];
+        const dares = [
+            "模仿一个动物叫三次。",
+            "大声唱一段流行歌曲。",
+            "跳一段你最尴尬的舞蹈。"
+        ];
+
+        // 随机获取数组中的一项
+        function getRandomItem(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        document.getElementById("btnTruth").addEventListener("click", function() {
+            const item = getRandomItem(truths);
+            document.getElementById("trContent").innerText = "真心话：" + item;
+        });
+        document.getElementById("btnDare").addEventListener("click", function() {
+            const item = getRandomItem(dares);
+            document.getElementById("trContent").innerText = "大冒险：" + item;
+        });
+    </script>
 </body>
 </html>
