@@ -34,10 +34,13 @@
             margin-top: 10px;
             font-size: 20px;
         }
-        #resetButton {
+        #resetButton, #undoButton {
             margin-top: 10px;
             font-size: 16px;
             padding: 5px 10px;
+        }
+        #gomokuControls {
+            margin-top: 10px;
         }
         /* 真心话大冒险相关样式 */
         #tdButtons button {
@@ -55,6 +58,10 @@
             margin-right: auto;
             min-height: 50px;
         }
+        #tdVersion {
+            margin-top: 10px;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
@@ -67,6 +74,25 @@
 
     <!-- 五子棋区 -->
     <div id="sectionGomoku" class="section active">
+        <!-- 控制区 -->
+        <div id="gomokuControls">
+            <label>游戏模式:
+                <select id="gameMode">
+                    <option value="pvp">玩家对战</option>
+                    <option value="pvai">玩家 vs AI</option>
+                </select>
+            </label>
+            <span id="aiDifficultyContainer" style="display:none;">
+                <label>难度:
+                    <select id="aiDifficulty">
+                        <option value="easy">简单</option>
+                        <option value="medium">中级</option>
+                        <option value="hard">高级</option>
+                    </select>
+                </label>
+            </span>
+            <button id="undoButton">悔棋</button>
+        </div>
         <canvas id="board" width="600" height="600"></canvas>
         <div id="message">黑棋先手</div>
         <button id="resetButton">重置游戏</button>
@@ -74,6 +100,14 @@
 
     <!-- 真心话大冒险区 -->
     <div id="sectionTruthDare" class="section">
+        <div id="tdVersion">
+            <label>版本:
+                <select id="tdSelect">
+                    <option value="standard">标准版</option>
+                    <option value="adult">成人版</option>
+                </select>
+            </label>
+        </div>
         <div id="tdButtons">
             <button id="btnTruth">真心话</button>
             <button id="btnDare">大冒险</button>
@@ -100,8 +134,27 @@
         const offset = 20;     // 边缘间距
 
         let board = [];        // 二维数组：0空，1黑，2白
-        let currentPlayer = 1; // 1: 黑棋先手，2: 白棋
+        let currentPlayer = 1; // 1: 黑棋，2: 白棋 / AI
         let gameOver = false;
+        let movesHistory = []; // 存储每一步落子 {row, col, player}
+
+        // 获取游戏模式和 AI 难度
+        let gameMode = document.getElementById("gameMode").value; // "pvp" 或 "pvai"
+        let aiDifficulty = document.getElementById("aiDifficulty").value; // "easy", "medium", "hard"
+
+        // 监听游戏模式变化
+        document.getElementById("gameMode").addEventListener("change", function(){
+            gameMode = this.value;
+            if(gameMode === "pvai"){
+                document.getElementById("aiDifficultyContainer").style.display = "inline";
+            } else {
+                document.getElementById("aiDifficultyContainer").style.display = "none";
+            }
+        });
+        // 监听 AI 难度变化
+        document.getElementById("aiDifficulty").addEventListener("change", function(){
+            aiDifficulty = this.value;
+        });
 
         // 初始化棋盘数据
         function initBoard() {
@@ -115,6 +168,7 @@
             }
             currentPlayer = 1;
             gameOver = false;
+            movesHistory = [];
             document.getElementById("message").innerText = "黑棋先手";
         }
 
@@ -192,7 +246,30 @@
             return false;
         }
 
-        // 处理棋盘点击事件
+        // 玩家下棋
+        function playerMove(row, col) {
+            if (gameOver || board[row][col] !== 0) return false;
+            board[row][col] = currentPlayer;
+            movesHistory.push({row: row, col: col, player: currentPlayer});
+            drawBoard();
+            if (checkWin(col, row)) {
+                let winner = (currentPlayer === 1) ? "黑棋" : (gameMode === "pvai" ? "AI" : "白棋");
+                document.getElementById("message").innerText = winner + " 赢了！";
+                gameOver = true;
+                return true;
+            }
+            // 切换玩家
+            currentPlayer = (currentPlayer === 1 ? 2 : 1);
+            if(gameMode === "pvp") {
+                document.getElementById("message").innerText = (currentPlayer === 1 ? "黑棋" : "白棋") + " 先手";
+            } else {
+                // 在 PvAI 模式下，玩家始终是黑棋（1），AI 是白棋（2）
+                document.getElementById("message").innerText = "玩家先手";
+            }
+            return true;
+        }
+
+        // 处理棋盘点击事件（仅在玩家回合有效）
         canvas.addEventListener("click", function(e) {
             if (gameOver) return;
             const rect = canvas.getBoundingClientRect();
@@ -201,16 +278,165 @@
             const col = Math.round((clickX - offset) / cellSize);
             const row = Math.round((clickY - offset) / cellSize);
             if (col < 0 || col >= boardSize || row < 0 || row >= boardSize) return;
-            if (board[row][col] !== 0) return;
-            board[row][col] = currentPlayer;
-            drawBoard();
-            if (checkWin(col, row)) {
-                document.getElementById("message").innerText = (currentPlayer === 1 ? "黑棋" : "白棋") + " 赢了！";
-                gameOver = true;
-                return;
+            if (!playerMove(row, col)) return;
+            // 如果 PvAI 模式且游戏未结束，AI 走棋
+            if (gameMode === "pvai" && !gameOver) {
+                setTimeout(aiMove, 500); // 延时半秒模拟思考
             }
-            currentPlayer = (currentPlayer === 1 ? 2 : 1);
-            document.getElementById("message").innerText = (currentPlayer === 1 ? "黑棋" : "白棋") + " 先手";
+        });
+
+        // AI 随机下棋（简单难度）
+        function randomMove() {
+            let emptyCells = [];
+            for (let i = 0; i < boardSize; i++) {
+                for (let j = 0; j < boardSize; j++) {
+                    if (board[i][j] === 0) {
+                        emptyCells.push({row: i, col: j});
+                    }
+                }
+            }
+            if (emptyCells.length === 0) return null;
+            return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+        }
+
+        // AI 查找必胜走法（如果能下一步赢，则走该步）
+        function findWinningMove(player) {
+            for (let i = 0; i < boardSize; i++) {
+                for (let j = 0; j < boardSize; j++) {
+                    if (board[i][j] === 0) {
+                        board[i][j] = player;
+                        if (checkWin(j, i)) {
+                            board[i][j] = 0;
+                            return {row: i, col: j};
+                        }
+                        board[i][j] = 0;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // AI 走棋函数，根据难度选择策略
+        function aiMove() {
+            if (gameOver) return;
+            // AI 代表白棋（2）
+            let move = null;
+            if (aiDifficulty === "easy") {
+                move = randomMove();
+            } else if (aiDifficulty === "medium") {
+                // 先尝试必胜走法
+                move = findWinningMove(2);
+                if (!move) {
+                    // 再尝试阻止对方必胜（对手是1）
+                    move = findWinningMove(1);
+                }
+                if (!move) {
+                    move = randomMove();
+                }
+            } else if (aiDifficulty === "hard") {
+                // 更高级：先必胜，再阻止，再随机
+                move = findWinningMove(2);
+                if (!move) {
+                    move = findWinningMove(1);
+                }
+                if (!move) {
+                    // 在 hard 模式下，可以遍历所有空位，选择一个“评分”最高的位置
+                    move = bestScoredMove();
+                    if (!move) move = randomMove();
+                }
+            }
+            if (move) {
+                board[move.row][move.col] = 2;
+                movesHistory.push({row: move.row, col: move.col, player: 2});
+                drawBoard();
+                if (checkWin(move.col, move.row)) {
+                    document.getElementById("message").innerText = "AI 赢了！";
+                    gameOver = true;
+                    return;
+                }
+                currentPlayer = 1;
+                document.getElementById("message").innerText = "玩家先手";
+            }
+        }
+
+        // 简单评分函数，用于 Hard 难度下选择最佳走法
+        function bestScoredMove() {
+            let bestScore = -Infinity;
+            let bestMove = null;
+            for (let i = 0; i < boardSize; i++) {
+                for (let j = 0; j < boardSize; j++) {
+                    if (board[i][j] === 0) {
+                        // 评分规则：简单计算该位置放置后连成的子数
+                        board[i][j] = 2;
+                        let score = evaluatePosition(j, i, 2);
+                        board[i][j] = 0;
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = {row: i, col: j};
+                        }
+                    }
+                }
+            }
+            return bestMove;
+        }
+
+        // 简单评分函数：统计四个方向的连续棋子数
+        function evaluatePosition(x, y, player) {
+            let total = 0;
+            const directions = [
+                {dx: 1, dy: 0},
+                {dx: 0, dy: 1},
+                {dx: 1, dy: 1},
+                {dx: 1, dy: -1}
+            ];
+            directions.forEach(dir => {
+                let count = 0;
+                let i = 1;
+                while (true) {
+                    const newX = x + dir.dx * i;
+                    const newY = y + dir.dy * i;
+                    if (newX < 0 || newX >= boardSize || newY < 0 || newY >= boardSize || board[newY][newX] !== player) break;
+                    count++;
+                    i++;
+                }
+                i = 1;
+                while (true) {
+                    const newX = x - dir.dx * i;
+                    const newY = y - dir.dy * i;
+                    if (newX < 0 || newX >= boardSize || newY < 0 || newY >= boardSize || board[newY][newX] !== player) break;
+                    count++;
+                    i++;
+                }
+                total += count;
+            });
+            return total;
+        }
+
+        // 悔棋功能：PvP 悔一步，PvAI 悔两步（玩家与 AI 各撤一步）
+        document.getElementById("undoButton").addEventListener("click", function() {
+            if (movesHistory.length === 0 || gameOver) return;
+            if (gameMode === "pvp") {
+                let lastMove = movesHistory.pop();
+                board[lastMove.row][lastMove.col] = 0;
+                currentPlayer = lastMove.player;
+            } else if (gameMode === "pvai") {
+                // 撤销玩家和 AI 的最后一步
+                if (movesHistory.length >= 2) {
+                    let moveAI = movesHistory.pop();
+                    board[moveAI.row][moveAI.col] = 0;
+                    let movePlayer = movesHistory.pop();
+                    board[movePlayer.row][movePlayer.col] = 0;
+                    currentPlayer = 1;
+                } else {
+                    // 如果不足两步，则只撤销一步
+                    let lastMove = movesHistory.pop();
+                    board[lastMove.row][lastMove.col] = 0;
+                    currentPlayer = 1;
+                }
+            }
+            gameOver = false;
+            document.getElementById("message").innerText = (currentPlayer === 1 ? "黑棋" : (gameMode === "pvai" ? "AI" : "白棋")) + " 先手";
+            drawBoard();
         });
 
         document.getElementById("resetButton").addEventListener("click", function() {
@@ -222,16 +448,27 @@
         drawBoard();
 
         /* ----------------- 真心话大冒险部分 ----------------- */
-        // 以下数组内容为示例，请将其替换为你原来代码中的真心话和大冒险内容
-        const truths = [
+        // 标准版内容
+        const truthsStandard = [
             "你最害怕什么？",
             "说出你曾经做过最尴尬的一件事。",
             "你有没有暗恋过别人？是谁？"
         ];
-        const dares = [
+        const daresStandard = [
             "模仿一个动物叫三次。",
             "大声唱一段流行歌曲。",
             "跳一段你最尴尬的舞蹈。"
+        ];
+        // 成人版内容（示例，请根据需要调整）
+        const truthsAdult = [
+            "你最后一次喝醉是什么时候？",
+            "说说你做过的最疯狂的一件事。",
+            "你有没有对某人抱有秘密的情愫？"
+        ];
+        const daresAdult = [
+            "模仿一个性感动作持续10秒钟。",
+            "大声说出你心中最挑逗的话语。",
+            "做一个夸张的表情持续5秒钟。"
         ];
 
         // 随机获取数组中的一项
@@ -240,12 +477,26 @@
         }
 
         document.getElementById("btnTruth").addEventListener("click", function() {
-            const item = getRandomItem(truths);
-            document.getElementById("trContent").innerText = "真心话：" + item;
+            const version = document.getElementById("tdSelect").value;
+            let item = "";
+            if(version === "adult") {
+                item = getRandomItem(truthsAdult);
+                document.getElementById("trContent").innerText = "真心话（成人版）：" + item;
+            } else {
+                item = getRandomItem(truthsStandard);
+                document.getElementById("trContent").innerText = "真心话：" + item;
+            }
         });
         document.getElementById("btnDare").addEventListener("click", function() {
-            const item = getRandomItem(dares);
-            document.getElementById("trContent").innerText = "大冒险：" + item;
+            const version = document.getElementById("tdSelect").value;
+            let item = "";
+            if(version === "adult") {
+                item = getRandomItem(daresAdult);
+                document.getElementById("trContent").innerText = "大冒险（成人版）：" + item;
+            } else {
+                item = getRandomItem(daresStandard);
+                document.getElementById("trContent").innerText = "大冒险：" + item;
+            }
         });
     </script>
 </body>
