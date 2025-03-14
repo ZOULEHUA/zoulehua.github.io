@@ -13,13 +13,13 @@
             padding: 20px;
         }
 
-        /* 导航按钮 */
         .nav {
             margin: 20px 0;
             display: flex;
             gap: 15px;
             justify-content: center;
         }
+
         .nav button {
             padding: 12px 24px;
             font-size: 16px;
@@ -30,13 +30,13 @@
             background: #4CAF50;
             color: white;
         }
+
         .nav button:hover {
             background: #45a049;
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
-        /* 游戏主容器 */
         .game-container {
             background: white;
             padding: 30px;
@@ -44,13 +44,13 @@
             box-shadow: 0 8px 16px rgba(0,0,0,0.1);
         }
 
-        /* 控制面板 */
         .control-panel {
             display: flex;
             gap: 20px;
             margin: 20px 0;
             flex-wrap: wrap;
         }
+
         .control-group {
             display: flex;
             align-items: center;
@@ -59,13 +59,7 @@
             padding: 12px;
             border-radius: 8px;
         }
-        select, input[type="range"] {
-            padding: 6px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
 
-        /* 棋盘样式 */
         canvas {
             background-color: #F0D9B5;
             border: 2px solid #8B4513;
@@ -73,7 +67,6 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
-        /* 信息显示 */
         #message {
             margin: 15px 0;
             font-size: 18px;
@@ -81,19 +74,20 @@
             color: #2c3e50;
         }
 
-        /* 真心话大冒险区域 */
         #sectionTruthDare {
             background: #fff;
             padding: 20px;
             border-radius: 8px;
             margin-top: 20px;
         }
+
         #tdButtons {
             display: flex;
             gap: 15px;
             justify-content: center;
             margin-bottom: 20px;
         }
+
         #trContent {
             font-size: 18px;
             padding: 20px;
@@ -102,19 +96,30 @@
             min-height: 100px;
             border: 2px dashed #ff9800;
         }
+
+        .punishment-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <h1 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">五子棋 & 成人版真心话大冒险</h1>
     
     <div class="game-container">
-        <!-- 导航切换 -->
         <div class="nav">
             <button id="btnGomoku">五子棋</button>
             <button id="btnTruthDare">真心话大冒险</button>
         </div>
 
-        <!-- 五子棋区 -->
         <div id="sectionGomoku" class="active">
             <div class="control-panel">
                 <div class="control-group">
@@ -138,7 +143,6 @@
             <div id="message">黑棋先手</div>
         </div>
 
-        <!-- 真心话大冒险区 -->
         <div id="sectionTruthDare" class="section">
             <div id="tdButtons">
                 <button id="btnTruth" style="background: #e91e63;">真心话</button>
@@ -149,7 +153,6 @@
     </div>
 
     <script>
-        /* ----------------- 五子棋核心逻辑 ----------------- */
         const canvas = document.getElementById("board");
         const ctx = canvas.getContext("2d");
         const BOARD_SIZE = 15;
@@ -165,229 +168,7 @@
             aiDifficulty: 5
         };
 
-        // 初始化游戏
-        function initGame() {
-            gameState.board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
-            gameState.currentPlayer = 1;
-            gameState.gameOver = false;
-            gameState.history = [];
-            drawBoard();
-            updateMessage("黑棋先手");
-        }
-
-        // 绘制棋盘
-        function drawBoard() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // 绘制棋盘背景
-            ctx.fillStyle = "#F0D9B5";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // 绘制网格
-            ctx.strokeStyle = "#8B4513";
-            ctx.lineWidth = 1;
-            for (let i = 0; i < BOARD_SIZE; i++) {
-                ctx.beginPath();
-                ctx.moveTo(OFFSET, OFFSET + i * CELL_SIZE);
-                ctx.lineTo(canvas.width - OFFSET, OFFSET + i * CELL_SIZE);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(OFFSET + i * CELL_SIZE, OFFSET);
-                ctx.lineTo(OFFSET + i * CELL_SIZE, canvas.height - OFFSET);
-                ctx.stroke();
-            }
-
-            // 绘制星位
-            const stars = [[3,3], [3,11], [11,3], [11,11], [7,7]];
-            stars.forEach(([x, y]) => {
-                ctx.beginPath();
-                ctx.arc(OFFSET + x * CELL_SIZE, OFFSET + y * CELL_SIZE, 4, 0, Math.PI * 2);
-                ctx.fillStyle = "#8B4513";
-                ctx.fill();
-            });
-
-            // 绘制棋子
-            gameState.board.forEach((row, y) => {
-                row.forEach((cell, x) => {
-                    if (cell !== 0) {
-                        drawStone(x, y, cell);
-                    }
-                });
-            });
-        }
-
-        // 绘制棋子
-        function drawStone(x, y, player) {
-            ctx.beginPath();
-            ctx.arc(OFFSET + x * CELL_SIZE, OFFSET + y * CELL_SIZE, 16, 0, Math.PI * 2);
-            ctx.fillStyle = player === 1 ? "#2c3e50" : "#ecf0f1";
-            ctx.fill();
-            ctx.strokeStyle = "#7f8c8d";
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-
-        // AI逻辑核心
-        class AI {
-            constructor(difficulty) {
-                this.difficulty = difficulty;
-            }
-
-            getMove() {
-                // 根据难度选择算法
-                if (this.difficulty < 4) {
-                    return this.randomMove();
-                } else if (this.difficulty < 8) {
-                    return this.smartMove();
-                }
-                return this.expertMove();
-            }
-
-            randomMove() {
-                const moves = [];
-                gameState.board.forEach((row, y) => {
-                    row.forEach((cell, x) => {
-                        if (cell === 0) moves.push([x, y]);
-                    });
-                });
-                return moves[Math.floor(Math.random() * moves.length)];
-            }
-
-            smartMove() {
-                // 实现基于简单评估函数的移动
-                let bestScore = -Infinity;
-                let bestMoves = [];
-                
-                gameState.board.forEach((row, y) => {
-                    row.forEach((cell, x) => {
-                        if (cell === 0) {
-                            let score = this.evaluatePosition(x, y);
-                            if (score > bestScore) {
-                                bestScore = score;
-                                bestMoves = [[x, y]];
-                            } else if (score === bestScore) {
-                                bestMoves.push([x, y]);
-                            }
-                        }
-                    });
-                });
-                
-                return bestMoves[Math.floor(Math.random() * bestMoves.length)];
-            }
-
-            evaluatePosition(x, y) {
-                // 简单的位置评估函数
-                let score = 0;
-                const directions = [[1,0], [0,1], [1,1], [1,-1]];
-                
-                directions.forEach(([dx, dy]) => {
-                    let playerCount = 0;
-                    let emptyCount = 0;
-                    
-                    for (let i = -4; i <= 4; i++) {
-                        const nx = x + dx * i;
-                        const ny = y + dy * i;
-                        if (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE) {
-                            if (gameState.board[ny][nx] === 2) playerCount++;
-                            if (gameState.board[ny][nx] === 0) emptyCount++;
-                        }
-                    }
-                    
-                    score += playerCount * 10 + emptyCount * 2;
-                });
-                
-                return score;
-            }
-
-            expertMove() {
-                // 实现Minimax算法（简化版）
-                let bestScore = -Infinity;
-                let bestMove = null;
-                
-                for (let y = 0; y < BOARD_SIZE; y++) {
-                    for (let x = 0; x < BOARD_SIZE; x++) {
-                        if (gameState.board[y][x] === 0) {
-                            gameState.board[y][x] = 2;
-                            let score = this.minimax(3, false);
-                            gameState.board[y][x] = 0;
-                            
-                            if (score > bestScore) {
-                                bestScore = score;
-                                bestMove = [x, y];
-                            }
-                        }
-                    }
-                }
-                return bestMove;
-            }
-
-            minimax(depth, isMaximizing) {
-                if (depth === 0) return this.evaluateBoard();
-                
-                if (isMaximizing) {
-                    let bestScore = -Infinity;
-                    // ... 完整Minimax实现 ...
-                    return bestScore;
-                } else {
-                    let bestScore = Infinity;
-                    // ... 完整Minimax实现 ...
-                    return bestScore;
-                }
-            }
-        }
-
-        // 游戏事件处理
-        canvas.addEventListener("click", (e) => {
-            if (gameState.gameOver) return;
-            if (gameState.aiEnabled && gameState.currentPlayer === 2) return;
-
-            const rect = canvas.getBoundingClientRect();
-            const x = Math.floor((e.clientX - rect.left - OFFSET + CELL_SIZE/2) / CELL_SIZE);
-            const y = Math.floor((e.clientY - rect.top - OFFSET + CELL_SIZE/2) / CELL_SIZE);
-            
-            if (isValidMove(x, y)) {
-                makeMove(x, y);
-                if (checkWin(x, y)) {
-                    handleWin();
-                } else {
-                    gameState.currentPlayer = 3 - gameState.currentPlayer;
-                    updateMessage(`${gameState.currentPlayer === 1 ? "黑棋" : "白棋"}回合`);
-                    
-                    if (gameState.aiEnabled) {
-                        setTimeout(() => aiMove(), 500);
-                    }
-                }
-            }
-        });
-
-        // 悔棋功能
-        document.getElementById("undoBtn").addEventListener("click", undoMove);
-        document.addEventListener("keydown", (e) => {
-            if (e.ctrlKey && e.key === 'z') undoMove();
-        });
-
-        function undoMove() {
-            if (gameState.history.length > 0) {
-                const lastMove = gameState.history.pop();
-                gameState.board[lastMove.y][lastMove.x] = 0;
-                gameState.currentPlayer = lastMove.player;
-                drawBoard();
-                updateMessage(`${gameState.currentPlayer === 1 ? "黑棋" : "白棋"}回合`);
-            }
-        }
-
-        // 其他辅助函数
-        function makeMove(x, y) {
-            gameState.board[y][x] = gameState.currentPlayer;
-            gameState.history.push({x, y, player: gameState.currentPlayer});
-            drawBoard();
-        }
-
-        function checkWin(x, y) {
-            // ... 保持原有胜利检测逻辑 ...
-        }
-
-        /* ----------------- 成人版真心话大冒险 ----------------- */
+        // 成人内容库
         const adultTruths = [
             "描述你最近一次性生活的细节？",
             "你尝试过的最刺激的性爱姿势是什么？",
@@ -404,42 +185,284 @@
             "与在场某人进行法式深吻至少30秒"
         ];
 
-        document.getElementById("btnTruth").addEventListener("click", () => {
-            showContent(adultTruths, "真心话");
-        });
+        class AI {
+            constructor(difficulty) {
+                this.difficulty = Math.min(Math.max(difficulty, 1), 10);
+                this.depthMap = [0,1,2,2,3,3,4,4,5,5,6];
+            }
 
-        document.getElementById("btnDare").addEventListener("click", () => {
-            showContent(adultDares, "大冒险");
-        });
+            getMove() {
+                const depth = this.depthMap[this.difficulty];
+                if (this.difficulty < 3) return this.randomMove();
+                if (this.difficulty < 7) return this.patternMove();
+                return this.minimaxMove(depth);
+            }
 
-        function showContent(arr, type) {
-            const content = arr[Math.floor(Math.random() * arr.length)];
-            document.getElementById("trContent").innerHTML = `
-                <strong>${type}：</strong>
-                <div style="margin-top: 10px; color: #${type === '真心话' ? 'c0392b' : '2980b9'}">${content}</div>
-            `;
+            randomMove() {
+                const moves = [];
+                gameState.board.forEach((row, y) => {
+                    row.forEach((cell, x) => {
+                        if (cell === 0) moves.push([x, y]);
+                    });
+                });
+                return moves[Math.floor(Math.random() * moves.length)];
+            }
+
+            patternMove() {
+                let bestScore = -Infinity;
+                let bestMoves = [];
+                
+                for (let y = 0; y < BOARD_SIZE; y++) {
+                    for (let x = 0; x < BOARD_SIZE; x++) {
+                        if (gameState.board[y][x] !== 0) continue;
+                        
+                        let score = 0;
+                        const directions = [[1,0], [0,1], [1,1], [1,-1]];
+                        
+                        directions.forEach(([dx, dy]) => {
+                            let playerCount = 0;
+                            let emptyCount = 0;
+                            let threat = false;
+                            
+                            for (let i = -4; i <= 4; i++) {
+                                const nx = x + dx * i;
+                                const ny = y + dy * i;
+                                if (nx < 0 || nx >= BOARD_SIZE || ny < 0 || ny >= BOARD_SIZE) continue;
+                                
+                                const cell = gameState.board[ny][nx];
+                                if (cell === 2) playerCount++;
+                                if (cell === 0) emptyCount++;
+                                
+                                if (i >= -3 && i <= 0) {
+                                    const sequence = [
+                                        gameState.board[ny + dy*1]?.[nx + dx*1],
+                                        gameState.board[ny + dy*2]?.[nx + dx*2],
+                                        gameState.board[ny + dy*3]?.[nx + dx*3],
+                                        gameState.board[ny + dy*4]?.[nx + dx*4]
+                                    ];
+                                    if (sequence.filter(c => c === 2).length === 3) threat = true;
+                                }
+                            }
+                            
+                            if (playerCount >= 4) score += 10000;
+                            else if (threat) score += 5000;
+                            else if (playerCount === 3 && emptyCount >= 2) score += 3000;
+                            else if (playerCount === 2 && emptyCount >= 3) score += 1000;
+                        });
+                        
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMoves = [[x, y]];
+                        } else if (score === bestScore) {
+                            bestMoves.push([x, y]);
+                        }
+                    }
+                }
+                return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+            }
+
+            minimaxMove(maxDepth) {
+                let bestScore = -Infinity;
+                let bestMove = null;
+                const moves = this.getCandidateMoves();
+                
+                for (const [x, y] of moves) {
+                    gameState.board[y][x] = 2;
+                    const score = this.minimax(maxDepth-1, -Infinity, Infinity, false);
+                    gameState.board[y][x] = 0;
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = [x, y];
+                    }
+                }
+                return bestMove;
+            }
+
+            minimax(depth, alpha, beta, isMaximizing) {
+                if (depth === 0) return this.evaluateBoard();
+                const moves = this.getCandidateMoves();
+                
+                if (isMaximizing) {
+                    let maxEval = -Infinity;
+                    for (const [x, y] of moves) {
+                        gameState.board[y][x] = 2;
+                        const eval = this.minimax(depth-1, alpha, beta, false);
+                        gameState.board[y][x] = 0;
+                        maxEval = Math.max(maxEval, eval);
+                        alpha = Math.max(alpha, eval);
+                        if (beta <= alpha) break;
+                    }
+                    return maxEval;
+                } else {
+                    let minEval = Infinity;
+                    for (const [x, y] of moves) {
+                        gameState.board[y][x] = 1;
+                        const eval = this.minimax(depth-1, alpha, beta, true);
+                        gameState.board[y][x] = 0;
+                        minEval = Math.min(minEval, eval);
+                        beta = Math.min(beta, eval);
+                        if (beta <= alpha) break;
+                    }
+                    return minEval;
+                }
+            }
+
+            evaluateBoard() {
+                let score = 0;
+                for (let y = 0; y < BOARD_SIZE; y++) {
+                    for (let x = 0; x < BOARD_SIZE; x++) {
+                        if (gameState.board[y][x] !== 2) continue;
+                        
+                        const directions = [[1,0], [0,1], [1,1], [1,-1]];
+                        directions.forEach(([dx, dy]) => {
+                            let consecutive = 1;
+                            let openEnds = 0;
+                            
+                            let i = 1;
+                            while (x + dx*i < BOARD_SIZE && y + dy*i < BOARD_SIZE && 
+                                   gameState.board[y + dy*i][x + dx*i] === 2) {
+                                consecutive++;
+                                i++;
+                            }
+                            if (x + dx*i < BOARD_SIZE && y + dy*i < BOARD_SIZE && 
+                                gameState.board[y + dy*i][x + dx*i] === 0) openEnds++;
+                            
+                            i = 1;
+                            while (x - dx*i >= 0 && y - dy*i >= 0 && 
+                                   gameState.board[y - dy*i][x - dx*i] === 2) {
+                                consecutive++;
+                                i++;
+                            }
+                            if (x - dx*i >= 0 && y - dy*i >= 0 && 
+                                gameState.board[y - dy*i][x - dx*i] === 0) openEnds++;
+                            
+                            if (consecutive >= 5) score += 100000;
+                            else if (consecutive === 4 && openEnds >= 1) score += 5000;
+                            else if (consecutive === 3 && openEnds >= 2) score += 2000;
+                            else if (consecutive === 2 && openEnds >= 2) score += 500;
+                        });
+                    }
+                }
+                return score;
+            }
+
+            getCandidateMoves() {
+                const moves = new Set();
+                for (let y = 0; y < BOARD_SIZE; y++) {
+                    for (let x = 0; x < BOARD_SIZE; x++) {
+                        if (gameState.board[y][x] !== 0) {
+                            for (let dy = -2; dy <= 2; dy++) {
+                                for (let dx = -2; dx <= 2; dx++) {
+                                    const nx = x + dx, ny = y + dy;
+                                    if (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE &&
+                                        gameState.board[ny][nx] === 0) {
+                                        moves.add([nx, ny]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return moves.size > 0 ? Array.from(moves) : this.randomMove();
+            }
         }
 
-        /* ----------------- 初始化 ----------------- */
-        document.getElementById("gameMode").addEventListener("change", (e) => {
-            gameState.aiEnabled = e.target.value === 'ai';
-            initGame();
-        });
+        function initGame() {
+            gameState.board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+            gameState.currentPlayer = 1;
+            gameState.gameOver = false;
+            gameState.history = [];
+            drawBoard();
+            updateMessage("黑棋先手");
+        }
 
-        document.getElementById("aiDifficulty").addEventListener("input", (e) => {
-            gameState.aiDifficulty = parseInt(e.target.value);
-            document.getElementById("difficultyValue").textContent = e.target.value;
-        });
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#F0D9B5";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = "#8B4513";
+            ctx.lineWidth = 1;
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                ctx.beginPath();
+                ctx.moveTo(OFFSET, OFFSET + i * CELL_SIZE);
+                ctx.lineTo(canvas.width - OFFSET, OFFSET + i * CELL_SIZE);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(OFFSET + i * CELL_SIZE, OFFSET);
+                ctx.lineTo(OFFSET + i * CELL_SIZE, canvas.height - OFFSET);
+                ctx.stroke();
+            }
 
-        // 导航切换
-        document.querySelectorAll(".nav button").forEach(btn => {
-            btn.addEventListener("click", function() {
-                document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
-                document.getElementById(this.id.replace("btn", "section")).classList.add("active");
+            [[3,3], [3,11], [11,3], [11,11], [7,7]].forEach(([x, y]) => {
+                ctx.beginPath();
+                ctx.arc(OFFSET + x * CELL_SIZE, OFFSET + y * CELL_SIZE, 4, 0, Math.PI * 2);
+                ctx.fillStyle = "#8B4513";
+                ctx.fill();
             });
-        });
 
-        initGame();
-    </script>
-</body>
-</html>
+            gameState.board.forEach((row, y) => {
+                row.forEach((cell, x) => {
+                    if (cell !== 0) drawStone(x, y, cell);
+                });
+            });
+        }
+
+        function drawStone(x, y, player) {
+            ctx.beginPath();
+            ctx.arc(OFFSET + x * CELL_SIZE, OFFSET + y * CELL_SIZE, 16, 0, Math.PI * 2);
+            ctx.fillStyle = player === 1 ? "#2c3e50" : "#ecf0f1";
+            ctx.fill();
+            ctx.strokeStyle = "#7f8c8d";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function checkWin(x, y) {
+            const player = gameState.board[y][x];
+            const directions = [[1,0], [0,1], [1,1], [1,-1]];
+            
+            for (const [dx, dy] of directions) {
+                let count = 1;
+                let i = 1;
+                while (x + dx*i < BOARD_SIZE && y + dy*i < BOARD_SIZE && 
+                       gameState.board[y + dy*i][x + dx*i] === player) {
+                    count++;
+                    i++;
+                }
+                i = 1;
+                while (x - dx*i >= 0 && y - dy*i >= 0 && 
+                       gameState.board[y - dy*i][x - dx*i] === player) {
+                    count++;
+                    i++;
+                }
+                if (count >= 5) return true;
+            }
+            return false;
+        }
+
+        function handleWin() {
+            gameState.gameOver = true;
+            const winner = gameState.currentPlayer;
+            const loser = 3 - winner;
+            
+            const modal = document.createElement('div');
+            modal.className = 'punishment-modal';
+            const isTruth = Math.random() > 0.5;
+            const content = isTruth ? 
+                adultTruths[Math.floor(Math.random()*adultTruths.length)] :
+                adultDares[Math.floor(Math.random()*adultDares.length)];
+            
+            modal.innerHTML = `
+                <h3 style="color: ${isTruth ? '#c0392b' : '#2980b9'}; margin-bottom: 20px;">
+                    玩家${loser}惩罚：${isTruth ? '真心话' : '大冒险'}
+                </h3>
+                <div style="font-size: 18px; margin: 20px 0;">${content}</div>
+                <button onclick="this.parentElement.remove()" 
+                        style="padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 5px;">
+                    确认完成
+                </button>
+            `;
+            document.body.appendChild(modal);
+            updateMessage
