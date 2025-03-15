@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>五子棋游戏 - 智能AI版</title>
+    <title>五子棋游戏 - lehua原创智能AI版</title>
     <style>
         body {
             font-family: 'Microsoft YaHei', 'Segoe UI', Arial, sans-serif;
@@ -57,6 +57,40 @@
         }
     </style>
 </head>
+<!-- 五子棋游戏容器 -->
+<div class="game-container">
+    <!-- 控制面板 -->
+    <div class="control-panel">
+        <select id="gameMode">
+            <option value="human">双人对战</option>
+            <option value="ai">对战AI</option>
+        </select>
+        
+        <div class="difficulty-group">
+            <label>AI难度：</label>
+            <input type="range" id="aiDifficulty" min="1" max="10" value="5">
+            <span id="difficultyValue">5</span>
+        </div>
+        
+        <button id="undoBtn">悔棋 (Ctrl+Z)</button>
+        <button id="resetButton">新游戏</button>
+    </div>
+
+    <!-- 棋盘 -->
+    <canvas id="board" width="600" height="600"></canvas>
+    
+    <!-- 比分显示 -->
+    <div id="scoreDisplay">玩家1: 0 - 玩家2: 0</div>
+    
+    <!-- 弹窗 -->
+    <div class="dialog-overlay" id="dialogOverlay">
+        <div class="dialog-box">
+            <h3 id="dialogTitle"></h3>
+            <p id="dialogContent"></p>
+            <button onclick="handleDialog()">确定</button>
+        </div>
+    </div>
+</div>
 <body>
     <h1>五子棋游戏 - 智能AI版</h1>
     
