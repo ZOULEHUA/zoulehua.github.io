@@ -191,46 +191,255 @@
         <script>
 // 在原有代码基础上修改AI类如下：
 
+<script>
+// 在原有AI类基础上进行以下关键修改
 class AI {
     constructor(difficulty) {
         this.difficulty = Math.min(10, Math.max(1, difficulty));
-        this.depthMap = [0, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6]; // 深度映射表
+        this.depthMap = [0,1,2,3,4,5,6,7,8,9,10]; // 搜索深度映射
+        this.openingBook = this.generateOpeningBook(); // 开局库
     }
 
     getMove() {
-        const difficultyLevel = this.difficulty;
-        let move;
-        
-        if (difficultyLevel < 4) {
-            move = this.getRandomMove();
-        } else if (difficultyLevel < 7) {
-            move = this.getStrategicMove(1);
-        } else if (difficultyLevel < 9) {
-            move = this.getStrategicMove(2);
-        } else {
-            move = this.minimaxSearch(this.depthMap[difficultyLevel]);
+        // 开局库优先
+        if(this.difficulty >= 8 && Math.random() > 0.3) {
+            const openingMove = this.checkOpeningBook();
+            if(openingMove) return openingMove;
         }
-        
-        return move || [7, 7]; // 保底返回中心点
+
+        // 动态调整搜索参数
+        const params = {
+            maxDepth: this.depthMap[this.difficulty],
+            branchFactor: Math.min(5 + this.difficulty * 2, 25),
+            timeLimit: Math.min(1000 + this.difficulty * 200, 3000)
+        };
+
+        // 终局加速
+        if(this.getRemainMoves() < 10) params.maxDepth += 2;
+
+        return this.enhancedMinimax(params);
     }
 
-    // 增强型随机移动（带基础策略）
-    getRandomMove() {
-        const candidates = [];
-        const centerWeight = 0.3; // 中心区域权重
+    // 生成开局库（核心点位）
+    generateOpeningBook() {
+        return {
+            "0_0_0": [[7,7], [6,6], [8,8]],  // 初始空棋盘
+            "1_7_7": [[6,6], [8,8], [7,6]],  // 中心开局
+            "1_6_6": [[7,7], [5,5], [8,8]]   // 星位开局
+        };
+    }
+
+    // 检查开局库
+    checkOpeningBook() {
+        const key = this.getBoardSignature(3); // 获取前3步特征
+        return this.openingBook[key]?.[Math.floor(Math.random()*3)];
+    }
+
+    // 增强版Minimax
+    enhancedMinimax({maxDepth, branchFactor, timeLimit}) {
+        let bestMove = null;
+        let bestScore = -Infinity;
+        const startTime = Date.now();
         
-        for(let y = 0; y < BOARD_SIZE; y++) {
-            for(let x = 0; x < BOARD_SIZE; x++) {
-                if(gameState.board[y][x] === 0) {
-                    const isCenter = (x >= 5 && x <= 9 && y >= 5 && y <= 9);
-                    const weight = isCenter ? centerWeight : 0.1;
-                    if(Math.random() < weight) return [x, y];
-                    candidates.push([x, y]);
+        // 迭代加深搜索
+        for(let depth = 1; depth <= maxDepth; depth++) {
+            const moves = this.getCandidateMoves().slice(0, branchFactor);
+            
+            for(const [x, y] of moves) {
+                if(Date.now() - startTime > timeLimit) break;
+                
+                gameState.board[y][x] = 2;
+                const score = this.negamax(depth-1, -Infinity, Infinity, -1);
+                gameState.board[y][x] = 0;
+                
+                if(score > bestScore) {
+                    bestScore = score;
+                    bestMove = [x, y];
                 }
             }
         }
-        return candidates[Math.floor(Math.random() * candidates.length)];
+        return bestMove || [7,7];
     }
+
+    // 负极大值算法（效率优化版）
+    negamax(depth, alpha, beta, color) {
+        if(depth <= 0) return color * this.evaluateBoard();
+        
+        const moves = this.getCandidateMoves().slice(0, 15); // 分支因子限制
+        let maxScore = -Infinity;
+        
+        for(const [x, y] of moves) {
+            gameState.board[y][x] = color > 0 ? 2 : 1;
+            const score = -this.negamax(depth-1, -beta, -alpha, -color);
+            gameState.board[y][x] = 0;
+            
+            maxScore = Math.max(maxScore, score);
+            alpha = Math.max(alpha, score);
+            if(alpha >= beta) break;
+        }
+        return maxScore;
+    }
+
+    // 增强版评估函数
+    evaluateBoard() {
+        let score = 0;
+        const patterns = {
+            // 新增复合棋型
+            '五连': 1000000,
+            '活四': 10000,
+            '双活三': 8000,
+            '冲四活三': 15000,
+            '眠四': 5000,
+            '活三眠三': 6000,
+            '活三': 3000,
+            '双活二': 1500,
+            '跳活三': 2500
+        };
+
+        // 多方向扫描
+        for(let y = 0; y < BOARD_SIZE; y++) {
+            for(let x = 0; x < BOARD_SIZE; x++) {
+                if(gameState.board[y][x] === 2) {
+                    score += this.scanPatterns(x, y, 2, patterns);
+                } else if(gameState.board[y][x] === 1) {
+                    score -= this.scanPatterns(x, y, 1, patterns) * 1.2; // 加强防守
+                }
+            }
+        }
+        return score;
+    }
+
+    // 模式扫描器
+    scanPatterns(x, y, player, patterns) {
+        let total = 0;
+        const directions = [[1,0],[0,1],[1,1],[1,-1]];
+        
+        directions.forEach(([dx, dy]) => {
+            // 九宫格扫描
+            let sequence = [];
+            for(let i = -4; i <= 4; i++) {
+                const nx = x + dx*i;
+                const ny = y + dy*i;
+                sequence.push(this.getCellValue(nx, ny, player));
+            }
+            
+            // 检测复合棋型
+            total += this.detectCompoundPattern(sequence, patterns);
+        });
+        return total;
+    }
+
+    // 复合棋型检测
+    detectCompoundPattern(sequence, patterns) {
+        let score = 0;
+        const windowSize = 5;
+        
+        // 滑动窗口检测
+        for(let i = 0; i <= sequence.length - windowSize; i++) {
+            const window = sequence.slice(i, i+windowSize);
+            const features = {
+                player: 0,
+                empty: 0,
+                block: 0,
+                continuity: 0
+            };
+
+            window.forEach(cell => {
+                if(cell === 1) features.player++;
+                else if(cell === 0) features.empty++;
+                else features.block++;
+            });
+
+            // 连续性检测
+            let maxContinuity = 0;
+            let current = 0;
+            window.forEach(cell => {
+                current = (cell === 1) ? current + 1 : 0;
+                maxContinuity = Math.max(maxContinuity, current);
+            });
+            features.continuity = maxContinuity;
+
+            // 复合评分
+            if(features.player === 4 && features.empty === 1) {
+                score += patterns['冲四'] || 5000;
+                if(this.checkDoubleThreat(window)) score += 3000; // 双冲四检测
+            }
+            if(features.player === 3 && features.empty >= 2) {
+                score += patterns['活三'];
+                if(this.findSecondThree(window)) score += patterns['双活三'];
+            }
+            // 其他复杂模式检测...
+        }
+        return score;
+    }
+
+    // 获取候选移动（优化性能）
+    getCandidateMoves() {
+        const moves = new Map(); // 使用Map存储带权移动
+        
+        // 威胁检测
+        this.detectThreats(2).forEach(([x,y,score]) => moves.set(`${x},${y}`, score)); // 进攻
+        this.detectThreats(1).forEach(([x,y,score]) => moves.set(`${x},${y}`, score*1.2)); // 防守
+        
+        // 转换为排序数组
+        return Array.from(moves)
+            .sort((a,b) => b[1] - a[1])
+            .map(([key]) => key.split(',').map(Number))
+            .slice(0, 30); // 限制候选数量
+    }
+
+    // 威胁检测引擎
+    detectThreats(player) {
+        const threats = [];
+        const scanRange = this.difficulty >= 7 ? 5 : 3; // 动态扫描范围
+        
+        for(let y = 0; y < BOARD_SIZE; y++) {
+            for(let x = 0; x < BOARD_SIZE; x++) {
+                if(gameState.board[y][x] !== 0) continue;
+                
+                let threatScore = 0;
+                // 多方向检测
+                const directions = [[1,0],[0,1],[1,1],[1,-1]];
+                directions.forEach(([dx, dy]) => {
+                    threatScore += this.evaluateThreat(x, y, dx, dy, player, scanRange);
+                });
+                
+                if(threatScore > 0) threats.push([x, y, threatScore]);
+            }
+        }
+        return threats;
+    }
+
+    // 威胁评估
+    evaluateThreat(x, y, dx, dy, player, range) {
+        let score = 0;
+        let potential = 0;
+        
+        // 正向扫描
+        for(let i = 1; i <= range; i++) {
+            const nx = x + dx*i;
+            const ny = y + dy*i;
+            const cell = this.getCellValue(nx, ny, player);
+            if(cell === 1) potential++;
+            else if(cell === -1) break;
+        }
+        
+        // 反向扫描
+        for(let i = 1; i <= range; i++) {
+            const nx = x - dx*i;
+            const ny = y - dy*i;
+            const cell = this.getCellValue(nx, ny, player);
+            if(cell === 1) potential++;
+            else if(cell === -1) break;
+        }
+        
+        // 威胁等级
+        if(potential >= 3) score += 1000;
+        if(potential >= 4) score += 5000;
+        return score;
+    }
+}
+</script>
 
     // 策略性移动（参数为防御系数）
     getStrategicMove(defenseFactor) {
