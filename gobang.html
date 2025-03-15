@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>五子棋游戏 - 完整版</title>
+    <style>
+        /* 新增弹窗样式 */
+        .dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+        .dialog-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 新增规则选择 -->
+    <div class="control-panel">
+        <select id="gameRule">
+            <option value="2">三局两胜</option>
+            <option value="3">五局三胜</option>
+            <option value="6">十局七胜</option>
+        </select>
+        <div id="scoreDisplay" style="margin-left: 20px;">
+            比分：玩家1 [0] - 玩家2 [0]
+        </div>
+    </div>
+
+    <!-- 新增弹窗结构 -->
+    <div class="dialog-overlay" id="dialogOverlay">
+        <div class="dialog-box">
+            <h3 id="dialogTitle"></h3>
+            <p id="dialogContent"></p>
+            <button onclick="handleChoice(true)">确定</button>
+        </div>
+    </div>
+
+    <script>
+        // 新增游戏记录
+        let matchRecord = {
+            player1: 0,
+            player2: 0,
+            requiredWins: 2
+        };
+
+        // 新增问题库
+        const truthQuestions = [
+            "你与多少人发生过性关系？",
+            "描述你最尴尬的性经历？",
+            "你有没有出轨过？",
+            "你最疯狂的性幻想是什么？",
+            "你什么时候失去童贞的？",
+            "你有没有发过裸照给别人？"
+        ];
+
+        const dareChallenges = [
+            "给前任打电话说'我想念你的身体'",
+            "在公共场所舔地板",
+            "给赢家发送下体照片",
+            "亲吻左边的人10秒钟",
+            "让赢家打屁股10下",
+            "在社交媒体发布'我爱爸爸'"
+        ];
+
+        // 修改后的开始新游戏函数
+        function startNewGame() {
+            // 骰子决定先手
+            const dice = Math.floor(Math.random() * 6) + 1;
+            gameState.currentPlayer = dice <= 3 ? 1 : 2;
+            
+            showMessage(`骰子点数: ${dice}，玩家${gameState.currentPlayer}先手`);
+            
+            // 初始化棋盘逻辑...
+        }
+
+        // 修改后的游戏结束处理
+        function gameOver(winner) {
+            // 更新比分
+            if(winner === 1) matchRecord.player1++;
+            if(winner === 2) matchRecord.player2++;
+            
+            updateScoreDisplay();
+
+            // 检查是否赢得比赛
+            if(matchRecord.player1 >= matchRecord.requiredWins || 
+               matchRecord.player2 >= matchRecord.requiredWins) {
+                const finalWinner = matchRecord.player1 > matchRecord.player2 ? 1 : 2;
+                showFinalResult(finalWinner);
+            } else {
+                showTruthOrDare(winner === 1 ? 2 : 1);
+            }
+            
+            // 开始新对局
+            setTimeout(startNewGame, 2000);
+        }
+
+        // 新增功能函数
+        function showTruthOrDare(loser) {
+            const isTruth = confirm(`玩家${loser}请选择：\n确定 - 真心话\n取消 - 大冒险`);
+            const content = isTruth ? 
+                truthQuestions[Math.floor(Math.random()*truthQuestions.length)] :
+                dareChallenges[Math.floor(Math.random()*dareChallenges.length)];
+            
+            document.getElementById('dialogTitle').textContent = isTruth ? '真心话' : '大冒险';
+            document.getElementById('dialogContent').textContent = content;
+            document.getElementById('dialogOverlay').style.display = 'flex';
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('scoreDisplay').textContent = 
+                `比分：玩家1 [${matchRecord.player1}] - 玩家2 [${matchRecord.player2}]`;
+        }
+
+        function handleChoice(confirmed) {
+            document.getElementById('dialogOverlay').style.display = 'none';
+            // 可以在这里添加后续处理逻辑
+        }
+
+        function showFinalResult(winner) {
+            alert(`玩家${winner}赢得整个比赛！`);
+            matchRecord.player1 = 0;
+            matchRecord.player2 = 0;
+            updateScoreDisplay();
+        }
+
+        // 规则选择事件
+        document.getElementById('gameRule').addEventListener('change', function() {
+            matchRecord.requiredWins = parseInt(this.value);
+        });
+    </script>
+</body>
+</html>
