@@ -1,0 +1,57 @@
+/* 游戏容器 */
+#gobang-game {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* 控制面板 */
+.game-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 1.5rem;
+}
+
+.custom-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.score-board {
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+  font-weight: 500;
+}
+
+/* 棋盘样式 */
+.canvas-wrapper {
+  position: relative;
+  padding: 15px;
+  background: #F0D9B5;
+  border-radius: 8px;
+}
+
+#gobangBoard {
+  width: 100%;
+  height: auto;
+  border: 2px solid #8B4513;
+}
+
+/* 弹窗样式 */
+.dialog-overlay {
+  /* 保持原有样式 */
+  backdrop-filter: blur(3px);
+}
+
+.dialog-content {
+  background: linear-gradient(145deg, #ffffff, #f8f9fa);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+}
