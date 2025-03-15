@@ -188,33 +188,211 @@
         }
 
         // AI核心逻辑
-        class AI {
-            constructor(difficulty) {
-                this.difficulty = Math.min(10, Math.max(1, difficulty));
-            }
+        <script>
+// 在原有代码基础上修改AI类如下：
 
-            getMove() {
-                // 获取所有合法移动
-                const moves = [];
-                for (let y = 0; y < BOARD_SIZE; y++) {
-                    for (let x = 0; x < BOARD_SIZE; x++) {
-                        if (gameState.board[y][x] === 0) {
-                            // 优先选择中心区域
-                            const centerDist = Math.abs(7 - x) + Math.abs(7 - y);
-                            moves.push({x, y, score: 100 - centerDist});
+class AI {
+    constructor(difficulty) {
+        this.difficulty = Math.min(10, Math.max(1, difficulty));
+        this.depthMap = [0, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6]; // 深度映射表
+    }
+
+    getMove() {
+        const difficultyLevel = this.difficulty;
+        let move;
+        
+        if (difficultyLevel < 4) {
+            move = this.getRandomMove();
+        } else if (difficultyLevel < 7) {
+            move = this.getStrategicMove(1);
+        } else if (difficultyLevel < 9) {
+            move = this.getStrategicMove(2);
+        } else {
+            move = this.minimaxSearch(this.depthMap[difficultyLevel]);
+        }
+        
+        return move || [7, 7]; // 保底返回中心点
+    }
+
+    // 增强型随机移动（带基础策略）
+    getRandomMove() {
+        const candidates = [];
+        const centerWeight = 0.3; // 中心区域权重
+        
+        for(let y = 0; y < BOARD_SIZE; y++) {
+            for(let x = 0; x < BOARD_SIZE; x++) {
+                if(gameState.board[y][x] === 0) {
+                    const isCenter = (x >= 5 && x <= 9 && y >= 5 && y <= 9);
+                    const weight = isCenter ? centerWeight : 0.1;
+                    if(Math.random() < weight) return [x, y];
+                    candidates.push([x, y]);
+                }
+            }
+        }
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    // 策略性移动（参数为防御系数）
+    getStrategicMove(defenseFactor) {
+        let bestScore = -Infinity;
+        let bestMoves = [];
+        
+        for(let y = 0; y < BOARD_SIZE; y++) {
+            for(let x = 0; x < BOARD_SIZE; x++) {
+                if(gameState.board[y][x] !== 0) continue;
+                
+                let score = this.evaluatePosition(x, y, 2) + 
+                           this.evaluatePosition(x, y, 1) * defenseFactor;
+                
+                // 中心区域加成
+                const centerDist = Math.abs(7 - x) + Math.abs(7 - y);
+                score += (14 - centerDist) * 5;
+                
+                if(score > bestScore) {
+                    bestScore = score;
+                    bestMoves = [[x, y]];
+                } else if(score === bestScore) {
+                    bestMoves.push([x, y]);
+                }
+            }
+        }
+        return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+    }
+
+    // 优化后的评估函数
+    evaluatePosition(x, y, player) {
+        let score = 0;
+        const directions = [[1,0], [0,1], [1,1], [1,-1]];
+        
+        directions.forEach(([dx, dy]) => {
+            let sequence = [];
+            
+            // 收集9格范围内的棋子信息
+            for(let i = -4; i <= 4; i++) {
+                const nx = x + dx * i;
+                const ny = y + dy * i;
+                if(nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE) {
+                    sequence.push(gameState.board[ny][nx]);
+                } else {
+                    sequence.push(-1); // 边界标记
+                }
+            }
+            
+            // 分析棋型模式
+            for(let i = 0; i <= 4; i++) { // 滑动窗口检测
+                const window = sequence.slice(i, i+5);
+                score += this.evaluateWindow(window, player);
+            }
+        });
+        
+        return score;
+    }
+
+    // 评估五元窗口
+    evaluateWindow(window, player) {
+        const enemy = 3 - player;
+        let playerCount = 0;
+        let emptyCount = 0;
+        
+        window.forEach(cell => {
+            if(cell === player) playerCount++;
+            if(cell === 0) emptyCount++;
+            if(cell === enemy) return 9999; // 遇到敌方棋子立即终止
+        });
+        
+        // 棋型评分表
+        const scores = {
+            4: {1: 10000, 2: 100000},  // 活四/冲四
+            3: {1: 500,   2: 5000},    // 活三/眠三
+            2: {1: 50,    2: 300},     // 活二/眠二
+            1: {1: 10,    2: 50}       // 单子
+        };
+        
+        const key = Math.min(playerCount, 4);
+        const type = emptyCount >= 2 ? 1 : 2; // 1:活型, 2:眠型
+        return scores[key][type] || 0;
+    }
+
+    // 带Alpha-Beta剪枝的Minimax
+    minimaxSearch(maxDepth) {
+        let bestScore = -Infinity;
+        let bestMove = null;
+        
+        const moves = this.getCandidateMoves().slice(0, 15); // 限制分支因子
+        for(const [x, y] of moves) {
+            gameState.board[y][x] = 2;
+            const score = this.minimax(maxDepth - 1, -Infinity, Infinity, false);
+            gameState.board[y][x] = 0;
+            
+            if(score > bestScore) {
+                bestScore = score;
+                bestMove = [x, y];
+            }
+        }
+        return bestMove;
+    }
+
+    minimax(depth, alpha, beta, isMaximizing) {
+        if(depth <= 0) return this.evaluateBoard();
+        
+        const player = isMaximizing ? 2 : 1;
+        const moves = this.getCandidateMoves().slice(0, 10); // 限制分支因子
+        
+        if(isMaximizing) {
+            let maxEval = -Infinity;
+            for(const [x, y] of moves) {
+                gameState.board[y][x] = 2;
+                const eval = this.minimax(depth-1, alpha, beta, false);
+                gameState.board[y][x] = 0;
+                maxEval = Math.max(maxEval, eval);
+                alpha = Math.max(alpha, eval);
+                if(beta <= alpha) break;
+            }
+            return maxEval;
+        } else {
+            let minEval = Infinity;
+            for(const [x, y] of moves) {
+                gameState.board[y][x] = 1;
+                const eval = this.minimax(depth-1, alpha, beta, true);
+                gameState.board[y][x] = 0;
+                minEval = Math.min(minEval, eval);
+                beta = Math.min(beta, eval);
+                if(beta <= alpha) break;
+            }
+            return minEval;
+        }
+    }
+
+    // 获取候选移动（优化性能）
+    getCandidateMoves() {
+        const moves = new Set();
+        
+        // 只搜索已有棋子周围3格范围
+        for(let y = 0; y < BOARD_SIZE; y++) {
+            for(let x = 0; x < BOARD_SIZE; x++) {
+                if(gameState.board[y][x] !== 0) {
+                    for(let dy = -3; dy <= 3; dy++) {
+                        for(let dx = -3; dx <= 3; dx++) {
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            if(nx >= 0 && nx < BOARD_SIZE && 
+                               ny >= 0 && ny < BOARD_SIZE &&
+                               gameState.board[ny][nx] === 0) {
+                                moves.add(`${nx},${ny}`);
+                            }
                         }
                     }
                 }
-                
-                // 根据难度添加随机性
-                const randomness = 10 - this.difficulty;
-                moves.sort((a, b) => b.score - a.score + Math.random()*randomness);
-                
-                return moves.length > 0 
-                    ? [moves[0].x, moves[0].y]
-                    : [7, 7]; // 保底选择中心
             }
         }
+        
+        // 如果无候选则返回随机移动
+        return moves.size > 0 
+            ? Array.from(moves).map(s => s.split(',').map(Number))
+            : this.getRandomMove();
+    }
+}
+</script>
 
         // 游戏主逻辑
         canvas.addEventListener('click', (e) => {
