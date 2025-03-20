@@ -6,40 +6,69 @@
     <style>
         body {
             font-family: 'Microsoft YaHei', 'Segoe UI', Arial, sans-serif;
-            background: #f0f0f0;
+            background: linear-gradient(135deg, #7c70ff, #ff8eb7);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 0;
-            padding: 20px;
         }
+
+        /* 梦幻背景效果 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
+                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px);
+            background-size: 550px 550px, 350px 350px, 250px 250px;
+            background-position: 0 0, 40px 60px, 130px 270px;
+            animation: twinkle 8s linear infinite;
+            z-index: 1;
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
         #board {
-            background: #F0D9B5;
-            border: 3px solid #8B4513;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            margin-top: 20px;
+            background: linear-gradient(145deg, #F0D9B5, #E6C088);
+            border: 8px solid #DAA520;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 2;
         }
         .control-panel {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             margin: 20px 0;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
+            z-index: 2;
         }
         button {
-            padding: 8px 16px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
+            background: linear-gradient(145deg, #FFD700, #FFA500);
+            color: #4A4A4A;
+            border: 2px solid #DAA520;
+            border-radius: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         button:hover {
-            background: #45a049;
-            transform: translateY(-1px);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            background: linear-gradient(145deg, #FFA500, #FFD700);
         }
         #message {
             font-size: 18px;
@@ -85,19 +114,20 @@
     <div class="game-container">
         <!-- 控制面板 -->
         <div class="control-panel">
-            <select id="gameMode">
+            <select id="gameMode" class="sakura-select">
                 <option value="human">双人对战</option>
                 <option value="ai">对战AI</option>
             </select>
             
             <div class="difficulty-group">
                 <label>AI难度：</label>
-                <input type="range" id="aiDifficulty" min="1" max="10" value="5">
+                <input type="range" id="aiDifficulty" min="1" max="10" value="5" class="sakura-range">
                 <span id="difficultyValue">5</span>
             </div>
             
-            <button id="undoBtn">悔棋 (Ctrl+Z)</button>
-            <button id="resetButton">新游戏</button>
+            <button id="undoBtn" class="sakura-btn">悔棋 (Ctrl+Z)</button>
+            <button id="resetButton" class="sakura-btn">新游戏</button>
+            <button id="diceBtn" class="sakura-btn dice-btn">🎲 随机先手</button>
         </div>
 
         <!-- 棋盘 -->
@@ -105,6 +135,7 @@
         
         <!-- 比分显示 -->
         <div id="scoreDisplay">玩家1: 0 - 玩家2: 0</div>
+        <div id="message">黑棋先手</div>
         
         <!-- 弹窗 -->
         <div class="dialog-overlay" id="dialogOverlay">
@@ -114,29 +145,28 @@
                 <button onclick="handleDialog()">确定</button>
             </div>
         </div>
+
+        <!-- 真心话大冒险弹窗 -->
+        <div class="dialog-overlay" id="truthDareOverlay">
+            <div class="truth-dare-dialog">
+                <h3>游戏结束!</h3>
+                <p id="gameResult"></p>
+                <p>选择你的惩罚:</p>
+                <div class="truth-dare-options">
+                    <button class="truth-dare-btn truth-btn" onclick="handleTruthDare('truth')">真心话</button>
+                    <button class="truth-dare-btn dare-btn" onclick="handleTruthDare('dare')">大冒险</button>
+                </div>
+            </div>
+        </div>
     </div>
 
-<body>
-    <h1>五子棋游戏 - 智能AI版</h1>
-    
-    <div class="control-panel">
-        <select id="gameMode">
-            <option value="human">双人对战</option>
-            <option value="ai">对战AI</option>
-        </select>
-        
-        <div class="difficulty-group">
-            <label>AI难度：</label>
-            <input type="range" id="aiDifficulty" min="1" max="10" value="5">
-            <span id="difficultyValue">5</span>
-        </div>
-        
-        <button id="undoBtn">悔棋 (Ctrl+Z)</button>
-        <button id="resetButton">新游戏</button>
+    <!-- 动漫人物 -->
+    <div class="anime-character character-1" id="character1">
+        <div class="character-speech">点击我会有惊喜哦！</div>
     </div>
-    
-    <canvas id="board" width="600" height="600"></canvas>
-    <div id="message">黑棋先手</div>
+    <div class="anime-character character-2" id="character2">
+        <div class="character-speech">来和我玩吧！</div>
+    </div>
 
     <script>
         const canvas = document.getElementById('board');
@@ -156,6 +186,12 @@
 
         // 初始化棋盘
         function initBoard() {
+            // 确保canvas尺寸适应屏幕
+            const boardSize = Math.min(600, window.innerWidth - 40);
+            canvas.width = boardSize;
+            canvas.height = boardSize;
+            const cellSize = (boardSize - 2 * OFFSET) / (BOARD_SIZE - 1);
+            
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             // 绘制棋盘背景
@@ -342,8 +378,7 @@
                 drawStone(x, y, gameState.currentPlayer);
                 
                 if(checkWin(x, y)) {
-                    gameState.gameOver = true;
-                    document.getElementById('message').textContent = `玩家${gameState.currentPlayer}获胜！`;
+                    handleGameEnd(`${gameState.currentPlayer === 1 ? '玩家一' : '玩家二'}`);
                     return;
                 }
 
@@ -362,8 +397,7 @@
                             drawStone(aiX, aiY, 2);
                             
                             if(checkWin(aiX, aiY)) {
-                                gameState.gameOver = true;
-                                document.getElementById('message').textContent = "AI获胜！";
+                                handleGameEnd('AI');
                             } else {
                                 gameState.currentPlayer = 1;
                                 document.getElementById('message').textContent = "黑棋回合";
@@ -373,6 +407,66 @@
                 }
             }
         });
+
+        // 添加樱花动画
+        function createSakura() {
+            const sakura = document.createElement('div');
+            sakura.style.position = 'absolute';
+            sakura.style.left = Math.random() * window.innerWidth + 'px';
+            sakura.style.top = '-30px';
+            sakura.style.width = Math.random() * 15 + 10 + 'px';
+            sakura.style.height = sakura.style.width;
+            sakura.style.background = `rgba(255, 183, 197, ${Math.random() * 0.3 + 0.4})`;
+            sakura.style.borderRadius = '50%';
+            sakura.style.filter = 'blur(1px)';
+            sakura.style.transform = `rotate(${Math.random() * 360}deg)`;
+            
+            const duration = Math.random() * 4 + 3;
+            const horizontalMovement = Math.random() * 200 - 100;
+            
+            sakura.style.animation = `
+                fall ${duration}s linear,
+                sway ${duration/4}s ease-in-out infinite alternate
+            `;
+            
+            const keyframes = `
+                @keyframes sway {
+                    to {
+                        transform: translateX(${horizontalMovement}px) rotate(${Math.random() * 360}deg);
+                    }
+                }
+            `;
+            
+            const styleSheet = document.createElement('style');
+            styleSheet.textContent = keyframes;
+            document.head.appendChild(styleSheet);
+            
+            document.getElementById('sakuraContainer').appendChild(sakura);
+            
+            setTimeout(() => {
+                sakura.remove();
+                styleSheet.remove();
+            }, duration * 1000);
+        }
+
+        // 添加动画关键帧
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fall {
+                0% {
+                    transform: translateY(0) rotate(0deg) scale(0.4);
+                    opacity: 1;
+                }
+                100% {
+                    transform: translateY(${window.innerHeight}px) rotate(360deg) scale(0.2);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 定期创建樱花
+        setInterval(createSakura, 500);
 
         // 初始化游戏
         initBoard();
@@ -417,6 +511,131 @@
             initBoard();
             document.getElementById('message').textContent = "黑棋先手";
         }
+
+        // 在script标签末尾添加
+        function addRippleEffect(button) {
+            button.addEventListener('click', function(e) {
+                const ripple = document.createElement('div');
+                ripple.classList.add('ripple');
+                this.appendChild(ripple);
+                
+                const rect = button.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                
+                ripple.style.width = ripple.style.height = `${size}px`;
+                ripple.style.left = `${e.clientX - rect.left - size/2}px`;
+                ripple.style.top = `${e.clientY - rect.top - size/2}px`;
+                
+                ripple.addEventListener('animationend', () => {
+                    ripple.remove();
+                });
+            });
+        }
+
+        // 为所有sakura-btn类的按钮添加波纹效果
+        document.querySelectorAll('.sakura-btn').forEach(addRippleEffect);
+
+        // 真心话大冒险问题库
+        const truthQuestions = [
+            "你最近一次说谎是什么时候？",
+            "你最喜欢的人是谁？",
+            "你做过最尴尬的事是什么？",
+            "你最后悔的一件事是什么？",
+            "你最想实现的愿望是什么？"
+        ];
+
+        const dareActions = [
+            "模仿一种动物叫声",
+            "做10个俯卧撑",
+            "唱一首歌",
+            "跳一段舞",
+            "学猫叫三声"
+        ];
+
+        function showTruthDareDialog(winner) {
+            const overlay = document.getElementById('truthDareOverlay');
+            const result = document.getElementById('gameResult');
+            result.textContent = `${winner} 获胜！失败者需要接受惩罚~`;
+            overlay.style.display = 'flex';
+        }
+
+        function handleTruthDare(type) {
+            const questions = type === 'truth' ? truthQuestions : dareActions;
+            const randomItem = questions[Math.floor(Math.random() * questions.length)];
+            alert(randomItem);
+            document.getElementById('truthDareOverlay').style.display = 'none';
+        }
+
+        // 修改游戏结束处理
+        function handleGameEnd(winner) {
+            gameState.gameOver = true;
+            document.getElementById('message').textContent = `${winner}获胜！`;
+            showTruthDareDialog(winner);
+        }
+
+        // 添加随机先手功能
+        document.getElementById('diceBtn').addEventListener('click', () => {
+            const diceResult = Math.floor(Math.random() * 60) + 1;
+            if (diceResult <= 30) {
+                gameState.currentPlayer = 1;
+                alert(`骰子结果: ${diceResult}, 玩家一先手！`);
+            } else {
+                gameState.currentPlayer = 2;
+                alert(`骰子结果: ${diceResult}, 玩家二先手！`);
+            }
+            document.getElementById('message').textContent = 
+                `${gameState.currentPlayer === 1 ? '黑棋' : '白棋'}回合`;
+        });
+
+        // 添加角色交互效果
+        function initializeCharacters() {
+            const characters = document.querySelectorAll('.anime-character');
+            const animations = ['character-bounce', 'character-wave', 'character-spin'];
+            const messages = [
+                ['好厉害！', '加油！', '不要放弃！', '你一定能赢！'],
+                ['真棒！', '继续加油！', '太有趣了！', '好开心啊！']
+            ];
+
+            characters.forEach((character, index) => {
+                const speech = character.querySelector('.character-speech');
+
+                // 鼠标悬停效果
+                character.addEventListener('mouseenter', () => {
+                    speech.style.opacity = '1';
+                    character.classList.add('character-bounce');
+                    setTimeout(() => character.classList.remove('character-bounce'), 500);
+                });
+
+                character.addEventListener('mouseleave', () => {
+                    speech.style.opacity = '0';
+                });
+
+                // 点击效果
+                character.addEventListener('click', () => {
+                    // 随机选择动画和消息
+                    const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
+                    const randomMessage = messages[index][Math.floor(Math.random() * messages[index].length)];
+                    
+                    // 移除现有动画并添加新动画
+                    character.classList.remove(...animations);
+                    void character.offsetWidth; // 强制重绘
+                    character.classList.add(randomAnimation);
+                    
+                    // 更新对话内容
+                    speech.textContent = randomMessage;
+                    speech.style.opacity = '1';
+                    
+                    // 动画结束后重置状态
+                    setTimeout(() => {
+                        character.classList.remove(randomAnimation);
+                        speech.style.opacity = '0';
+                    }, 1000);
+                });
+            });
+        }
+
+        // 初始化角色
+        initializeCharacters();
     </script>
 </body>
 </html>
