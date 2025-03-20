@@ -462,7 +462,7 @@
     <div class="shooting-star" style="top: 80%; left: -40%;"></div>
 
     <!-- 主标题 -->
-    <h1>五子棋 Truth or Dare - 桦哥进阶版</h1>
+    <h1>五子棋游戏 - 智能AI版</h1>
 
     <!-- 游戏容器 -->
     <div class="game-container">
@@ -829,17 +829,25 @@
         document.getElementById('gameMode').addEventListener('change', (e) => {
             gameState.aiEnabled = e.target.value === 'ai';
             resetGame();
+            // 更新悔棋按钮状态
+            const undoBtn = document.getElementById('undoBtn');
+            if (gameState.aiEnabled) {
+                undoBtn.disabled = true;
+                undoBtn.style.opacity = '0.5';
+                undoBtn.title = 'AI对战模式下不允许悔棋';
+            } else {
+                undoBtn.disabled = false;
+                undoBtn.style.opacity = '1';
+                undoBtn.title = '悔棋 (Ctrl+Z)';
+            }
         });
-
-        document.getElementById('aiDifficulty').addEventListener('input', (e) => {
-            gameState.aiDifficulty = parseInt(e.target.value);
-            document.getElementById('difficultyValue').textContent = e.target.value;
-        });
-
-        document.getElementById('resetButton').addEventListener('click', resetGame);
 
         document.getElementById('undoBtn').addEventListener('click', () => {
-            if(gameState.history.length > 0) {
+            if (gameState.aiEnabled) {
+                alert('AI对战模式下不允许悔棋！');
+                return;
+            }
+            if (gameState.history.length > 0) {
                 const lastMove = gameState.history.pop();
                 gameState.board[lastMove.y][lastMove.x] = 0;
                 gameState.currentPlayer = lastMove.player;
@@ -850,7 +858,9 @@
         });
 
         document.addEventListener('keydown', (e) => {
-            if(e.ctrlKey && e.key === 'z') document.getElementById('undoBtn').click();
+            if (e.ctrlKey && e.key === 'z' && !gameState.aiEnabled) {
+                document.getElementById('undoBtn').click();
+            }
         });
 
         function resetGame() {
@@ -901,7 +911,7 @@
         const dareActions = [
             "模仿一种动物叫声",
             "做10个俯卧撑",
-            "亲对手十秒钟",
+            "唱一首歌",
             "跳一段舞",
             "学猫叫三声"
         ];
