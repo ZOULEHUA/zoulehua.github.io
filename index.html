@@ -403,21 +403,20 @@
 
         /* 新增背景图案 */
         .pattern-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 0;
-            opacity: 0.1;
             background: 
-                radial-gradient(circle at 100% 50%, transparent 20%, rgba(255,255,255,0.3) 21%, rgba(255,255,255,0.3) 34%, transparent 35%, transparent),
-                radial-gradient(circle at 0% 50%, transparent 20%, rgba(255,255,255,0.3) 21%, rgba(255,255,255,0.3) 34%, transparent 35%, transparent) 0 -50px;
-            background-size: 75px 100px;
-            animation: patternMove 60s linear infinite;
+                linear-gradient(45deg, 
+                    rgba(255,255,255,0.01) 0%, 
+                    rgba(255,255,255,0.03) 50%, 
+                    rgba(255,255,255,0.01) 100%
+                );
+            animation: fluid 20s ease infinite;
+            background-size: 200% 200%;
         }
-
+        @keyframes fluid {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
         /* 动画关键帧 */
         @keyframes rippleEffect {
             to {
